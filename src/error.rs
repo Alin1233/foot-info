@@ -2,7 +2,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum AppError {
-    #[error("Network error: {0}")]
+    #[error("Network error: {0:?}")]
     Network(#[from] reqwest::Error),
 
     #[error("Team '{0}' not found. Please check the spelling and try again.")]
