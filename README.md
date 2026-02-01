@@ -1,6 +1,6 @@
 # ⚽ Foot Info - Football Match Scraper TUI
 
-**Foot Info** is a fast, asynchronous Terminal User Interface (TUI) application built in Rust. It allows you to check upcoming TV schedules and match fixtures for your favorite football teams directly from the command line.
+**Foot Info** is a fast, asynchronous Terminal User Interface application built in Rust. It allows you to check upcoming TV schedules and match fixtures for your favorite football teams directly from the command line.
 
 ![Foot Info Demo](ss/Startup.png)
 
