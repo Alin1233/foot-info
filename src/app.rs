@@ -1,21 +1,20 @@
 use std::io;
+use std::sync::Arc;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::DefaultTerminal;
 use tokio::sync::mpsc;
 use crate::ui;
 use crate::models::Match;
-use crate::client;
+use crate::providers::{FootballProvider, wheresthematch::WheresTheMatchProvider};
 use crate::error::AppError;
 use crate::config::Config;
 
-#[derive(Debug)]
 pub enum Action {
     Search(String),
     MatchesFound(Vec<Match>),
     Error(AppError),
 }
 
-#[derive(Debug)]
 pub struct App {
     pub search_input: String,
     pub matches: Vec<Match>,
@@ -24,6 +23,7 @@ pub struct App {
     pub is_loading: bool,
     pub exit: bool,
     pub config: Config,
+    pub provider: Arc<dyn FootballProvider>,
     action_tx: mpsc::UnboundedSender<Action>,
     action_rx: mpsc::UnboundedReceiver<Action>,
 }
@@ -40,6 +40,7 @@ impl App {
             is_loading: false,
             exit: false,
             config,
+            provider: Arc::new(WheresTheMatchProvider),
             action_tx,
             action_rx,
         }
@@ -66,8 +67,9 @@ impl App {
                         self.error_message = None;
                         self.matches.clear();
                         let tx = self.action_tx.clone();
+                        let provider = self.provider.clone();
                         tokio::spawn(async move {
-                            match client::fetch_matches(&team).await {
+                            match provider.fetch_matches(&team).await {
                                 Ok(matches) => {
                                     let _ = tx.send(Action::MatchesFound(matches));
                                 }

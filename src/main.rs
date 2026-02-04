@@ -1,7 +1,7 @@
 use std::io;
 
 mod app;
-mod client;
+mod providers;
 mod models;
 mod ui;
 mod theme;
