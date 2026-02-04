@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use reqwest::{StatusCode};
 use scraper::{Html, Selector};
-use crate::models::Match;
+use crate::models::{Match, Country};
 use crate::user;
 use crate::error::AppError;
 use super::FootballProvider;
@@ -10,11 +10,15 @@ pub struct WheresTheMatchProvider;
 
 #[async_trait]
 impl FootballProvider for WheresTheMatchProvider {
+    fn country(&self) -> Country {
+        Country::UK
+    }
+
     fn name(&self) -> &str {
         "WheresTheMatch Scraper"
     }
 
-    async fn fetch_matches(&self, team_name: &str) -> Result<Vec<Match>, AppError> {
+    async fn fetch_matches_channels(&self, team_name: &str) -> Result<Vec<Match>, AppError> {
         let formatted_name = team_name.trim().replace(" ", "-");
         let url = format!("https://www.wheresthematch.com/Football/{}.asp", formatted_name);
 

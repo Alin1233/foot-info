@@ -21,13 +21,18 @@ pub fn draw(frame: &mut Frame, app: &App) {
         Span::styled("<Ctrl+s> ", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
         Span::raw("| Load Fav "),
         Span::styled("<Ctrl+f> ", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
+        Span::raw("| Switch Country "),
+        Span::styled("<c> ", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
     ]);
+
+    let current_provider = app.get_current_provider();
+    let title = format!(" FOOTBALL MATCH CHANNELS INFO [{}] ", current_provider.country());
 
     // Main Block
     let main_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(BEIGE))
-        .title(Span::styled(" FOOTBALL MATCH CHANNELS INFO ", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)))
+        .title(Span::styled(title, Style::default().fg(GOLD).add_modifier(Modifier::BOLD)))
         .title_alignment(Alignment::Center)
         .title_bottom(instructions.centered())
         .style(Style::default().bg(BG_BLACK).fg(BEIGE));

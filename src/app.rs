@@ -5,7 +5,7 @@ use ratatui::DefaultTerminal;
 use tokio::sync::mpsc;
 use crate::ui;
 use crate::models::Match;
-use crate::providers::{FootballProvider, wheresthematch::WheresTheMatchProvider};
+use crate::providers::{FootballProvider, wheresthematch::WheresTheMatchProvider, mock_us::MockUsProvider};
 use crate::error::AppError;
 use crate::config::Config;
 
@@ -23,7 +23,8 @@ pub struct App {
     pub is_loading: bool,
     pub exit: bool,
     pub config: Config,
-    pub provider: Arc<dyn FootballProvider>,
+    pub providers: Vec<Arc<dyn FootballProvider>>,
+    pub current_provider_index: usize,
     action_tx: mpsc::UnboundedSender<Action>,
     action_rx: mpsc::UnboundedReceiver<Action>,
 }
@@ -40,10 +41,18 @@ impl App {
             is_loading: false,
             exit: false,
             config,
-            provider: Arc::new(WheresTheMatchProvider),
+            providers: vec![
+                Arc::new(WheresTheMatchProvider),
+                Arc::new(MockUsProvider),
+            ],
+            current_provider_index: 0,
             action_tx,
             action_rx,
         }
+    }
+
+    pub fn get_current_provider(&self) -> Arc<dyn FootballProvider> {
+        self.providers[self.current_provider_index].clone()
     }
 
     pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
@@ -67,9 +76,9 @@ impl App {
                         self.error_message = None;
                         self.matches.clear();
                         let tx = self.action_tx.clone();
-                        let provider = self.provider.clone();
+                        let provider = self.get_current_provider();
                         tokio::spawn(async move {
-                            match provider.fetch_matches(&team).await {
+                            match provider.fetch_matches_channels(&team).await {
                                 Ok(matches) => {
                                     let _ = tx.send(Action::MatchesFound(matches));
                                 }
@@ -120,6 +129,11 @@ impl App {
                 } else {
                     self.status_message = Some("No favorite team saved.".to_string());
                 }
+            }
+            KeyCode::Char('c') => {
+                self.current_provider_index = (self.current_provider_index + 1) % self.providers.len();
+                let provider = self.get_current_provider();
+                self.status_message = Some(format!("Switched to: {} ({})", provider.country(), provider.name()));
             }
             KeyCode::Char(c) => {
                 self.search_input.push(c);
