@@ -5,7 +5,7 @@ use ratatui::DefaultTerminal;
 use tokio::sync::mpsc;
 use crate::ui;
 use crate::models::Match;
-use crate::providers::{FootballProvider, wheresthematch::WheresTheMatchProvider, worldsoccertalk::WorldSoccerTalkProvider};
+use crate::providers::{FootballProvider, wheresthematch::WheresTheMatchProvider, worldsoccertalk::WorldSoccerTalkProvider, matchstv::MatchsTvProvider};
 use crate::error::AppError;
 use crate::config::Config;
 
@@ -44,6 +44,7 @@ impl App {
             providers: vec![
                 Arc::new(WheresTheMatchProvider),
                 Arc::new(WorldSoccerTalkProvider),
+                Arc::new(MatchsTvProvider),
             ],
             current_provider_index: 0,
             action_tx,

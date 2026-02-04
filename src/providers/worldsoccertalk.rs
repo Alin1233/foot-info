@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use reqwest::StatusCode;
 use scraper::{Html, Selector};
 use crate::models::{Match, Country};
+use crate::user;
 use crate::error::AppError;
 use super::FootballProvider;
 
@@ -43,21 +44,30 @@ impl FootballProvider for WorldSoccerTalkProvider {
         let title_selector = Selector::parse(".text-stvsMatchTitle").unwrap();
         let provider_selector = Selector::parse(".text-stvsProviderLink a.hidden.md\\:inline-block").unwrap();
         let provider_fallback_selector = Selector::parse(".text-stvsProviderLink a").unwrap();
+
         let content_selector = Selector::parse("div.flex.flex-col.w-full > div").unwrap();
 
         for date_group in document.select(&content_selector) {
-            let date = date_group
+            let date_str = date_group
                 .select(&date_selector)
                 .next()
                 .map(|el| el.text().collect::<Vec<_>>().join(" ").trim().to_string());
             
-            if let Some(current_date) = date {
+            if let Some(current_date_str) = date_str {
                 for row in date_group.select(&match_row_selector) {
-                    let time = row
+                    let raw_time = row
                         .select(&hour_selector)
                         .next()
                         .map(|el| el.text().collect::<Vec<_>>().join(" ").trim().to_string())
                         .unwrap_or_else(|| "Unknown Time".to_string());
+
+                    // Try to convert ET to Local
+                    let (date, time) = if let Some((local_date, local_time)) = user::convert_et_to_local(&current_date_str, &raw_time) {
+                        (local_date, local_time)
+                    } else {
+                        // Fallback to raw string if parsing fails
+                        (current_date_str.clone(), raw_time)
+                    };
 
                     let full_title = row
                         .select(&title_selector)
@@ -91,7 +101,7 @@ impl FootballProvider for WorldSoccerTalkProvider {
                     matches.push(Match {
                         teams,
                         competition,
-                        date: current_date.clone(),
+                        date,
                         time,
                         channels,
                     });
@@ -102,6 +112,7 @@ impl FootballProvider for WorldSoccerTalkProvider {
         if matches.is_empty() {
             return Err(AppError::NoMatchesScheduled(team_name.to_string()));
         }
+
         Ok(matches)
     }
 }

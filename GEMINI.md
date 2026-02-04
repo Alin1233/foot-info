@@ -3,10 +3,10 @@
 This document outlines the architecture and resources used in the **foot-info** TUI application.
 
 ## Overview
-**foot-info** is a Terminal User Interface (TUI) application written in Rust. It allows users to search for a football team and scrapes match schedules and TV broadcast information from [WherestheMatch.com](https://www.wheresthematch.com).
+**foot-info** is a Terminal User Interface (TUI) application written in Rust. It allows users to search for a football team and scrapes match schedules and TV broadcast information from various sources based on the selected country.
 
 ## Architecture
-The application follows a clean separation of concerns, modularized into specific layers:
+The application follows a **Provider-based Architecture**, allowing for easy extension of data sources.
 
 ### 1. **Entry Point (`src/main.rs`)**
 - Initializes the Tokio async runtime (`#[tokio::main]`).
@@ -18,46 +18,56 @@ The application follows a clean separation of concerns, modularized into specifi
 - **Key Components**:
   - `search_input`: Stores the user's current query.
   - `matches`: A vector of `Match` structs containing the scraped data.
-  - `is_loading` / `error_message`: UI state flags.
-  - **Async Event Loop**: Uses `tokio::sync::mpsc` channels to handle asynchronous scraping tasks without freezing the UI. User input triggers a task spawn, and results are sent back to the main loop via the channel.
+  - `providers`: A list of available data providers (`Vec<Arc<dyn FootballProvider>>`).
+  - `current_provider_index`: Tracks the currently active provider.
+  - `config`: Handles user preferences (loaded from `src/config.rs`).
+  - **Async Event Loop**: Uses `tokio::sync::mpsc` channels to handle asynchronous scraping tasks without freezing the UI.
 
-### 3. **UI Layer (`src/ui.rs` & `src/theme.rs`)**
+### 3. **The Provider System (`src/providers/`)**
+- **Pattern**: Strategy Pattern via the `FootballProvider` trait.
+- **Trait Definition (`src/providers/mod.rs`)**:
+  - `fetch_matches_channels(&self, team: &str)`: Async method to get data.
+  - `country(&self)`: Returns the `Country` enum (UK, US, FR).
+- **Implementations**:
+  - **`WheresTheMatchProvider`** (UK): Scrapes [WherestheMatch.com](https://www.wheresthematch.com).
+  - **`WorldSoccerTalkProvider`** (US): Scrapes [WorldSoccerTalk.com](https://worldsoccertalk.com).
+  - **`MatchsTvProvider`** (FR): Scrapes [Matchs.tv](https://matchs.tv).
+
+### 4. **UI Layer (`src/ui.rs` & `src/theme.rs`)**
 - **Responsibility**: Renders the application to the terminal frame.
-- **Key Components**:
-  - **Layout**: A vertical stack separating the Title, Input Field, and Results/Status area.
-  - **Theme**: A custom color palette ("BlackOrangeBeigeGoldFall") defined in `src/theme.rs` to ensure consistent styling.
-  - **Widgets**: Uses `Paragraph` for text and `List` (customized) for displaying match cards.
+- **Features**:
+  - Displays the current country context (e.g., `[UK]`, `[US]`).
+  - Shows instructions for shortcuts:
+    - `<Ctrl+s>`: Save current team as favorite.
+    - `<Ctrl+f>`: Load favorite team.
+    - `<c>`: Switch country/provider.
 
-### 4. **Data Layer (`src/models.rs`)**
-- Defines the core data structures.
+### 5. **Data Layer (`src/models.rs`)**
 - `Match`: Holds `teams`, `competition`, `date`, `time`, and `channels`.
+- `Country`: Enum (`UK`, `US`, `FR`) representing the region of the provider.
 
-### 5. **Client / Scraping Engine (`src/client.rs`)**
-- **Responsibility**: Fetches and parses data from the web.
-- **Logic**:
-  - **Fetch**: Uses `reqwest` (async) to GET the team page.
-  - **Validation**: Checks for 404s, redirects, and "Invalid URL Format" error pages to detect incorrect team names.
-  - **Parsing**: Uses `scraper` with CSS selectors to extract match details from the HTML table.
-  - **Filtering**: Removes advertisements and header rows.
-  - **Normalization**: Cleans up team names and channel strings.
-
-### 6. **Utilities (`src/user.rs` & `src/error.rs`)**
-- **`user.rs`**: Handles user-specific localization, specifically converting scraped UTC ISO timestamps to the local system time using `chrono` and `chrono-tz` (via `Local`).
-- **`error.rs`**: Defines a custom `AppError` enum using `thiserror` to categorize issues (Network, TeamNotFound, NoMatchesScheduled) and provide user-friendly error messages.
+### 6. **Utilities**
+- **`src/user.rs`**: Handles timezone conversions.
+  - `convert_utc_to_local`: For ISO 8601 timestamps.
+  - `convert_et_to_local`: For US Eastern Time (WorldSoccerTalk).
+  - `convert_french_time_to_local`: For Paris Time (Matchs.tv).
+- **`src/config.rs`**: Manages persistence of user preferences (favorite team) using `serde` and the system's config directory.
 
 ## Resources & Libraries
 
 | Library | Purpose |
 | :--- | :--- |
 | **Ratatui** | The core TUI framework for rendering the interface. |
-| **Tokio** | Asynchronous runtime for non-blocking network requests and event handling. |
+| **Tokio** | Asynchronous runtime for non-blocking network requests. |
 | **Crossterm** | Handles low-level terminal input/output events. |
-| **Reqwest** | HTTP client for fetching HTML pages (JSON feature enabled, though not used for this scraping). |
-| **Scraper** | HTML parsing library (similar to BeautifulSoup) using CSS selectors. |
+| **Reqwest** | HTTP client for fetching HTML pages. |
+| **Scraper** | HTML parsing library using CSS selectors. |
 | **Chrono** | Date and time manipulation. |
-| **Thiserror** | Ergonomic error handling for defining custom error types. |
+| **Chrono-TZ** | Timezone database for converting ET/Paris times to local. |
+| **Serde** | Serialization for configuration files. |
+| **Async-Trait** | Enables async methods in the `FootballProvider` trait. |
 
-## External Data Source
-- **Website**: [WherestheMatch.com](https://www.wheresthematch.com)
-- **Method**: HTML Scraping.
-- **Caveat**: The application relies on the specific DOM structure of the website. Changes to the website's layout will likely require updates to the CSS selectors in `src/client.rs`.
+## External Data Sources
+- **UK**: [WherestheMatch.com](https://www.wheresthematch.com)
+- **US**: [WorldSoccerTalk.com](https://worldsoccertalk.com)
+- **FR**: [Matchs.tv](https://matchs.tv)

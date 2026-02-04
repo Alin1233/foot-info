@@ -4,6 +4,7 @@ use crate::error::AppError;
 
 pub mod wheresthematch;
 pub mod worldsoccertalk;
+pub mod matchstv;
 
 #[async_trait]
 pub trait FootballProvider: Send + Sync {

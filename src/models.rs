@@ -11,6 +11,7 @@ pub struct Match {
 pub enum Country {
     UK,
     US,
+    FR,
 }
 
 impl std::fmt::Display for Country {
@@ -18,6 +19,7 @@ impl std::fmt::Display for Country {
         match self {
             Country::UK => write!(f, "UK"),
             Country::US => write!(f, "US"),
+            Country::FR => write!(f, "FR"),
         }
     }
 }
