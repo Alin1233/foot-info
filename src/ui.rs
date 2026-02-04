@@ -17,6 +17,10 @@ pub fn draw(frame: &mut Frame, app: &App) {
         Span::styled("<Esc> ", Style::default().fg(RUST_ORANGE).add_modifier(Modifier::BOLD)),
         Span::raw("| Search "),
         Span::styled("<Enter> ", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
+        Span::raw("| Save Fav "),
+        Span::styled("<Ctrl+s> ", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
+        Span::raw("| Load Fav "),
+        Span::styled("<Ctrl+f> ", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
     ]);
 
     // Main Block
@@ -31,12 +35,12 @@ pub fn draw(frame: &mut Frame, app: &App) {
     frame.render_widget(main_block.clone(), area);
     let inner_area = main_block.inner(area);
 
-    // Layout: Input at top, Results below
+    // Layout: Input at top, Status Message, Results below
     let vertical_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(3), // Input
-            Constraint::Length(1), // Spacer
+            Constraint::Length(1), // Spacer/Status
             Constraint::Min(1),    // Results
         ])
         .split(inner_area);
@@ -66,6 +70,14 @@ pub fn draw(frame: &mut Frame, app: &App) {
         .alignment(Alignment::Center);
 
     frame.render_widget(input_paragraph, input_layout[1]);
+
+    // Status Message Section
+    if let Some(msg) = &app.status_message {
+        let status_text = Paragraph::new(msg.clone())
+            .style(Style::default().fg(GOLD))
+            .alignment(Alignment::Center);
+        frame.render_widget(status_text, vertical_layout[1]);
+    }
 
     // Results Section
     let results_area = vertical_layout[2];

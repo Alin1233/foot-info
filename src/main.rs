@@ -7,6 +7,7 @@ mod ui;
 mod theme;
 mod user;
 mod error;
+mod config;
 
 use app::App;
 

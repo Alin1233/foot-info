@@ -1,11 +1,12 @@
 use std::io;
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use ratatui::DefaultTerminal;
 use tokio::sync::mpsc;
 use crate::ui;
 use crate::models::Match;
 use crate::client;
 use crate::error::AppError;
+use crate::config::Config;
 
 #[derive(Debug)]
 pub enum Action {
@@ -19,8 +20,10 @@ pub struct App {
     pub search_input: String,
     pub matches: Vec<Match>,
     pub error_message: Option<String>,
+    pub status_message: Option<String>,
     pub is_loading: bool,
     pub exit: bool,
+    pub config: Config,
     action_tx: mpsc::UnboundedSender<Action>,
     action_rx: mpsc::UnboundedReceiver<Action>,
 }
@@ -28,12 +31,15 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let (action_tx, action_rx) = mpsc::unbounded_channel();
+        let config = Config::load();
         Self {
             search_input: String::new(),
             matches: Vec::new(),
             error_message: None,
+            status_message: None,
             is_loading: false,
             exit: false,
+            config,
             action_tx,
             action_rx,
         }
@@ -90,7 +96,27 @@ impl App {
             KeyCode::Esc => self.exit = true,
             KeyCode::Enter => {
                 if !self.search_input.is_empty() {
+                    self.status_message = None;
                     let _ = self.action_tx.send(Action::Search(self.search_input.clone()));
+                }
+            }
+            KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                if !self.search_input.is_empty() {
+                    self.config.favorite_team = Some(self.search_input.clone());
+                    if let Err(e) = self.config.save() {
+                        self.error_message = Some(format!("Failed to save config: {}", e));
+                    } else {
+                        self.status_message = Some(format!("Saved favorite: {}", self.search_input));
+                    }
+                }
+            }
+            KeyCode::Char('f') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                if let Some(team) = &self.config.favorite_team {
+                    self.search_input = team.clone();
+                    self.status_message = Some(format!("Loaded favorite: {}", team));
+                    let _ = self.action_tx.send(Action::Search(team.clone()));
+                } else {
+                    self.status_message = Some("No favorite team saved.".to_string());
                 }
             }
             KeyCode::Char(c) => {
