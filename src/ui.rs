@@ -22,7 +22,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
         Span::raw("| Load Fav "),
         Span::styled("<Ctrl+f> ", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
         Span::raw("| Switch Country "),
-        Span::styled("<c> ", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
+        Span::styled("<Ctrl + c> ", Style::default().fg(GOLD).add_modifier(Modifier::BOLD)),
     ]);
 
     let current_provider = app.get_current_provider();

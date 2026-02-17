@@ -131,7 +131,7 @@ impl App {
                     self.status_message = Some("No favorite team saved.".to_string());
                 }
             }
-            KeyCode::Char('c') => {
+            KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.current_provider_index = (self.current_provider_index + 1) % self.providers.len();
                 let provider = self.get_current_provider();
                 self.status_message = Some(format!("Switched to: {} ({})", provider.country(), provider.name()));
