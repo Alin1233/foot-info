@@ -1,8 +1,13 @@
-use std::sync::Arc;
-use crate::models::Match;
-use crate::providers::{FootballProvider, wheresthematch::WheresTheMatchProvider, worldsoccertalk::WorldSoccerTalkProvider, matchstv::MatchsTvProvider};
 use crate::config::Config;
+use crate::models::{Match, TopMatch, ViewMode};
+use crate::providers::{
+    FootballProvider, matchstv::MatchsTvProvider, wheresthematch::WheresTheMatchProvider,
+    worldsoccertalk::WorldSoccerTalkProvider,
+};
+use std::sync::Arc;
 
+/// Pure application state — no channels, no async, no side effects.
+/// This is what the UI reads from and what handlers mutate.
 pub struct AppState {
     pub search_input: String,
     pub matches: Vec<Match>,
@@ -13,6 +18,9 @@ pub struct AppState {
     pub config: Config,
     pub providers: Vec<Arc<dyn FootballProvider>>,
     pub current_provider_index: usize,
+    pub view_mode: ViewMode,
+    pub top_matches: Vec<TopMatch>,
+    pub selected_top_match_index: usize,
 }
 
 impl AppState {
@@ -32,6 +40,9 @@ impl AppState {
                 Arc::new(MatchsTvProvider),
             ],
             current_provider_index: 0,
+            view_mode: ViewMode::Search,
+            top_matches: Vec::new(),
+            selected_top_match_index: 0,
         }
     }
 

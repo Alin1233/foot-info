@@ -28,15 +28,16 @@ Split into three focused modules:
   - `config: Config`
 - Helper: `get_current_provider()` returns the active provider.
 
-#### **Event Handling (`src/handler.rs`)**
+#### **Event Handling (`src/handlers/`)**
 - **Responsibility**: Pure state mutations, easily testable without a terminal or runtime.
-- `handle_key_event(&mut AppState, KeyEvent) -> Option<Action>`: Processes keyboard input, returns an optional `Action` to dispatch.
-- `handle_action(&mut AppState, &Action) -> bool`: Applies async results to state, returns whether an async task should be spawned.
+- **`mod.rs`**: Dispatcher — checks global shortcuts first, then delegates to mode-specific handler. Also owns `handle_action` for applying async results.
+- **`search.rs`**: Handles Search-mode keybindings (Esc, Enter, Ctrl+s/f/t, char input).
+- **`top_matches.rs`**: Handles TopMatches-mode keybindings (↑/↓/←/→ column navigation, Enter, Esc). Includes `date_groups`/`flat_to_col_row` helpers for column-based navigation.
 
 #### **Orchestrator (`src/app.rs`)**
 - **Responsibility**: Thin runtime shell — owns `AppState` + `mpsc` channels + the async run loop.
-- `App::run()` coordinates: polls terminal events → delegates to `handler` → spawns async tasks → processes results.
-- `Action` enum: `Search(String)`, `MatchesFound(Vec<Match>)`, `Error(AppError)`.
+- `App::run()` coordinates: polls terminal events → delegates to `handlers` → spawns async tasks → processes results.
+- `Action` enum: `Search(String)`, `MatchesFound(Vec<Match>)`, `Error(AppError)`, `FetchTopMatches`, `TopMatchesFound(Vec<TopMatch>)`.
 
 ### 4. **The Provider System (`src/providers/`)**
 - **Pattern**: Strategy Pattern via the `FootballProvider` trait (with `#[cfg_attr(test, mockall::automock)]` for test mocking).
@@ -48,6 +49,8 @@ Split into three focused modules:
   - **`WheresTheMatchProvider`** (UK): Scrapes [WherestheMatch.com](https://www.wheresthematch.com).
   - **`WorldSoccerTalkProvider`** (US): Scrapes [WorldSoccerTalk.com](https://worldsoccertalk.com).
   - **`MatchsTvProvider`** (FR): Scrapes [Matchs.tv](https://matchs.tv). Also exposes `pub fn parse_french_date` and `pub fn convert_french_time_to_local`.
+- **Standalone Module** (does **not** implement `FootballProvider` — different purpose):
+  - **`livesoccertv`**: Scrapes [LiveSoccerTV.com](https://www.livesoccertv.com/schedules/) "Upcoming Top Matches" section. Returns `Vec<TopMatch>` (teams, date, URL). Requires `User-Agent` header.
 
 ### 5. **UI Layer (`src/ui/`)**
 Modular component-based structure:
@@ -55,21 +58,25 @@ Modular component-based structure:
 ```
 src/ui/
 ├── mod.rs              # Module root, re-exports draw()
-├── render.rs           # Main draw function (composes components)
+├── render.rs           # Main draw function (composes components, dual-mode rendering)
 ├── layout.rs           # Reusable layout functions (main_vertical, input_horizontal, results_horizontal)
 ├── theme.rs            # Color constants (BG_BLACK, GOLD, RUST_ORANGE, BEIGE)
 └── components/
     ├── mod.rs
-    ├── search_bar.rs   # Search input widget
-    ├── match_list.rs   # Results display (uses ResultsState enum: Loading/Error/Matches/Empty)
-    └── status_bar.rs   # Transient status messages
+    ├── search_bar.rs        # Search input widget
+    ├── match_list.rs        # Results display (uses ResultsState enum: Loading/Error/Matches/Empty)
+    ├── status_bar.rs        # Transient status messages
+    └── top_matches_list.rs  # Upcoming top matches list with selection highlight (TopMatchesState enum)
 ```
 
-- `render::draw(frame, &AppState)` is the entry point, composing all components.
-- Keyboard shortcuts displayed in the bottom bar: `<Esc>` quit, `<Enter>` search, `<Ctrl+s>` save favorite, `<Ctrl+f>` load favorite, `<Ctrl+c>` switch country.
+- `render::draw(frame, &AppState)` is the entry point, rendering based on `ViewMode`.
+- **Search mode shortcuts**: `<Esc>` quit, `<Enter>` search, `<Ctrl+s>` save favorite, `<Ctrl+f>` load favorite, `<Ctrl+c>` switch country, `<Ctrl+t>` top matches.
+- **Top Matches mode shortcuts**: `<Esc>` back, `<↑/↓>` navigate, `<Enter>` select match, `<Ctrl+c>` switch country.
 
 ### 6. **Data Layer (`src/models.rs`)**
 - `Match`: Holds `teams`, `competition`, `date`, `time`, and `channels`.
+- `TopMatch`: Lightweight struct for discovery matches (`teams`, `date`, `match_url`).
+- `ViewMode`: Enum (`Search`, `TopMatches`) tracking which screen is active.
 - `Country`: Enum (`UK`, `US`, `FR`) representing the region of the provider.
 
 ### 7. **Error Handling (`src/error.rs`)**
@@ -91,11 +98,13 @@ Tests use **real HTML** fetched from live provider websites, stored in `tests/re
 | `wheresthematch_tests.rs` | 6 | HTML parsing, team matching, channels, error edge cases |
 | `worldsoccertalk_tests.rs` | 5 | HTML parsing, channels, competition extraction, edge cases |
 | `matchstv_tests.rs` | 15 | HTML parsing, French date parsing, time conversion, edge cases |
+| `livesoccertv_tests.rs` | 7 | Top matches parsing, structure validation, known teams, error cases |
 
 ### Test Resources (`tests/resources/`)
 - `wheresthematch.html` — Real HTML from WheresTheMatch.com
 - `worldsoccertalk.html` — Real HTML from WorldSoccerTalk.com
 - `matchstv.html` — Real HTML from Matchs.tv
+- `livesoccertv.html` — Real HTML from LiveSoccerTV.com
 
 ## Resources & Libraries
 

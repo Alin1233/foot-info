@@ -7,6 +7,20 @@ pub struct Match {
     pub channels: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct TopMatch {
+    pub teams: String,
+    pub date: String,
+    pub time: String,
+    pub match_url: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ViewMode {
+    Search,
+    TopMatches,
+}
+
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Country {
     UK,
