@@ -58,9 +58,13 @@ Modular component-based structure:
 ```
 src/ui/
 ├── mod.rs              # Module root, re-exports draw()
-├── render.rs           # Main draw function (composes components, dual-mode rendering)
+├── render.rs           # Thin dispatcher: outer frame + delegates to views
 ├── layout.rs           # Reusable layout functions (main_vertical, input_horizontal, results_horizontal)
 ├── theme.rs            # Color constants (BG_BLACK, GOLD, RUST_ORANGE, BEIGE)
+├── views/
+│   ├── mod.rs
+│   ├── search.rs            # Search view composition (search bar + status + match list)
+│   └── top_matches.rs       # Top matches view composition (status + date-grouped columns)
 └── components/
     ├── mod.rs
     ├── search_bar.rs        # Search input widget
