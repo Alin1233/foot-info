@@ -1,10 +1,10 @@
-use async_trait::async_trait;
-use reqwest::StatusCode;
-use scraper::{Html, Selector};
-use crate::models::{Match, Country};
-use crate::user;
-use crate::error::AppError;
 use super::FootballProvider;
+use crate::error::AppError;
+use crate::models::{Country, Match};
+use crate::user;
+use async_trait::async_trait;
+use scraper::{Html, Selector};
+use wreq::StatusCode;
 
 pub struct WheresTheMatchProvider;
 
@@ -20,10 +20,18 @@ impl FootballProvider for WheresTheMatchProvider {
 
     async fn fetch_matches_channels(&self, team_name: &str) -> Result<Vec<Match>, AppError> {
         let formatted_name = team_name.trim().replace(" ", "-");
-        let url = format!("https://www.wheresthematch.com/Football/{}.asp", formatted_name);
+        let url = format!(
+            "https://www.wheresthematch.com/Football/{}.asp",
+            formatted_name
+        );
 
-        let response = reqwest::get(&url).await?;
-        
+        let client = wreq::Client::builder()
+            .emulation(wreq_util::Emulation::Chrome136)
+            .build()
+            .map_err(|e| AppError::Network(e))?;
+
+        let response = client.get(&url).send().await?;
+
         // Check for 404
         if response.status() == StatusCode::NOT_FOUND {
             return Err(AppError::TeamNotFound(team_name.to_string()));
@@ -32,11 +40,11 @@ impl FootballProvider for WheresTheMatchProvider {
         let final_url = response.url().as_str();
         // If redirected to search results, it's a fail
         if final_url.contains("search-results.asp") {
-             return Err(AppError::TeamNotFound(team_name.to_string()));
+            return Err(AppError::TeamNotFound(team_name.to_string()));
         }
 
         let body = response.text().await?;
-        
+
         parse_html(&body, team_name)
     }
 }
@@ -57,7 +65,7 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
     }
 
     let row_selector = Selector::parse("#teamswrapper table tbody tr").unwrap();
-    let teams_selector = Selector::parse(".fixture-details .fixture").unwrap(); 
+    let teams_selector = Selector::parse(".fixture-details .fixture").unwrap();
     let competition_selector = Selector::parse(".competition-name").unwrap();
     let time_selector = Selector::parse(".start-details").unwrap();
     let channel_selector = Selector::parse(".channel-details img").unwrap();
@@ -68,10 +76,10 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
         if let Some(teams_element) = row.select(&teams_selector).next() {
             let raw_text = teams_element.text().collect::<Vec<_>>().join(" ");
             let teams = raw_text.split_whitespace().collect::<Vec<_>>().join(" ");
-            
-            if teams.is_empty() 
-               || teams.contains("WATCH TODAY'S GAME LIVE!") 
-               || teams.contains("SKY DEALS") 
+
+            if teams.is_empty()
+                || teams.contains("WATCH TODAY'S GAME LIVE!")
+                || teams.contains("SKY DEALS")
             {
                 continue;
             }
@@ -100,9 +108,9 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
             let channels: Vec<String> = row
                 .select(&channel_selector)
                 .filter_map(|img| {
-                    img.value().attr("alt").map(|s| {
-                        s.trim_end_matches(" logo").to_string()
-                    })
+                    img.value()
+                        .attr("alt")
+                        .map(|s| s.trim_end_matches(" logo").to_string())
                 })
                 .collect();
 
@@ -124,11 +132,16 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
 }
 
 fn parse_text_date(element: scraper::ElementRef) -> (String, String) {
-    let datetime_text = element.text().collect::<Vec<_>>().join(" ").trim().to_string();
+    let datetime_text = element
+        .text()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .trim()
+        .to_string();
     let parts: Vec<&str> = datetime_text.split_whitespace().collect();
     if let Some(last) = parts.last() {
         if last.contains(':') {
-            let d = parts[..parts.len()-1].join(" ");
+            let d = parts[..parts.len() - 1].join(" ");
             (d, last.to_string())
         } else {
             (datetime_text, "".to_string())

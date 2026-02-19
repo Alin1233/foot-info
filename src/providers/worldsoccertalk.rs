@@ -1,10 +1,10 @@
-use async_trait::async_trait;
-use reqwest::StatusCode;
-use scraper::{Html, Selector};
-use crate::models::{Match, Country};
-use crate::user;
-use crate::error::AppError;
 use super::FootballProvider;
+use crate::error::AppError;
+use crate::models::{Country, Match};
+use crate::user;
+use async_trait::async_trait;
+use scraper::{Html, Selector};
+use wreq::StatusCode;
 
 pub struct WorldSoccerTalkProvider;
 
@@ -20,9 +20,17 @@ impl FootballProvider for WorldSoccerTalkProvider {
 
     async fn fetch_matches_channels(&self, team_name: &str) -> Result<Vec<Match>, AppError> {
         let formatted_name = team_name.trim().to_lowercase().replace(" ", "-");
-        let url = format!("https://worldsoccertalk.com/teams/{}-tv-schedule/", formatted_name);
+        let url = format!(
+            "https://worldsoccertalk.com/teams/{}-tv-schedule/",
+            formatted_name
+        );
 
-        let response = reqwest::get(&url).await?;
+        let client = wreq::Client::builder()
+            .emulation(wreq_util::Emulation::Chrome136)
+            .build()
+            .map_err(|e| AppError::Network(e))?;
+
+        let response = client.get(&url).send().await?;
 
         if response.status() == StatusCode::NOT_FOUND {
             return Err(AppError::TeamNotFound(team_name.to_string()));
@@ -42,7 +50,7 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
     // Check if we actually have a schedule
     let date_selector = Selector::parse("h3.text-stvsDate").unwrap();
     if document.select(&date_selector).next().is_none() {
-         return Err(AppError::NoMatchesScheduled(team_name.to_string()));
+        return Err(AppError::NoMatchesScheduled(team_name.to_string()));
     }
 
     let mut matches = Vec::new();
@@ -50,7 +58,8 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
     let match_row_selector = Selector::parse("li.border-stvsMatchBorderColor").unwrap();
     let hour_selector = Selector::parse(".text-stvsMatchHour").unwrap();
     let title_selector = Selector::parse(".text-stvsMatchTitle").unwrap();
-    let provider_selector = Selector::parse(".text-stvsProviderLink a.hidden.md\\:inline-block").unwrap();
+    let provider_selector =
+        Selector::parse(".text-stvsProviderLink a.hidden.md\\:inline-block").unwrap();
     let provider_fallback_selector = Selector::parse(".text-stvsProviderLink a").unwrap();
 
     let content_selector = Selector::parse("div.flex.flex-col.w-full > div").unwrap();
@@ -60,7 +69,7 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
             .select(&date_selector)
             .next()
             .map(|el| el.text().collect::<Vec<_>>().join(" ").trim().to_string());
-        
+
         if let Some(current_date_str) = date_str {
             for row in date_group.select(&match_row_selector) {
                 let raw_time = row
@@ -70,7 +79,9 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
                     .unwrap_or_else(|| "Unknown Time".to_string());
 
                 // Try to convert ET to Local
-                let (date, time) = if let Some((local_date, local_time)) = user::convert_et_to_local(&current_date_str, &raw_time) {
+                let (date, time) = if let Some((local_date, local_time)) =
+                    user::convert_et_to_local(&current_date_str, &raw_time)
+                {
                     (local_date, local_time)
                 } else {
                     // Fallback to raw string if parsing fails
@@ -85,7 +96,10 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
 
                 let (teams, competition) = if let Some(idx) = full_title.rfind('(') {
                     let t = full_title[..idx].trim().to_string();
-                    let c = full_title[idx+1..].trim_end_matches(')').trim().to_string();
+                    let c = full_title[idx + 1..]
+                        .trim_end_matches(')')
+                        .trim()
+                        .to_string();
                     (t, c)
                 } else {
                     (full_title, "Unknown Competition".to_string())
@@ -95,7 +109,7 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
                     .select(&provider_selector)
                     .map(|el| el.text().collect::<Vec<_>>().join(" ").trim().to_string())
                     .collect();
-                
+
                 if channels.is_empty() {
                     let mut raw_channels: Vec<String> = row
                         .select(&provider_fallback_selector)

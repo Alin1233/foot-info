@@ -1,11 +1,11 @@
-use async_trait::async_trait;
-use reqwest::StatusCode;
-use scraper::{Html, Selector};
-use chrono::{NaiveDate, NaiveTime, Datelike, Local, TimeZone};
-use chrono_tz::Europe::Paris;
-use crate::models::{Match, Country};
-use crate::error::AppError;
 use super::FootballProvider;
+use crate::error::AppError;
+use crate::models::{Country, Match};
+use async_trait::async_trait;
+use chrono::{Datelike, Local, NaiveDate, NaiveTime, TimeZone};
+use chrono_tz::Europe::Paris;
+use scraper::{Html, Selector};
+use wreq::StatusCode;
 
 pub struct MatchsTvProvider;
 
@@ -24,7 +24,12 @@ impl FootballProvider for MatchsTvProvider {
         let formatted_name = team_name.trim().to_lowercase().replace(" ", "-");
         let url = format!("https://matchs.tv/club/{}/", formatted_name);
 
-        let response = reqwest::get(&url).await?;
+        let client = wreq::Client::builder()
+            .emulation(wreq_util::Emulation::Chrome136)
+            .build()
+            .map_err(|e| AppError::Network(e))?;
+
+        let response = client.get(&url).send().await?;
 
         if response.status() == StatusCode::NOT_FOUND {
             return Err(AppError::TeamNotFound(team_name.to_string()));
@@ -45,7 +50,7 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
 
     let row_selector = Selector::parse("table.programme-tv.fixtures tr").unwrap();
     let date_link_selector = Selector::parse("h3 a").unwrap();
-    
+
     let time_selector = Selector::parse("td.date").unwrap();
     let fixture_selector = Selector::parse("td.fixture h4 a").unwrap();
     let competition_selector = Selector::parse("td.fixture .competitions").unwrap();
@@ -56,7 +61,12 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
 
     for row in document.select(&row_selector) {
         if let Some(header) = row.select(&date_link_selector).next() {
-            let raw_date = header.text().collect::<Vec<_>>().join(" ").trim().to_string();
+            let raw_date = header
+                .text()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .trim()
+                .to_string();
             if let Some((formatted, naive)) = parse_french_date(&raw_date) {
                 current_date_str = formatted;
                 current_naive_date = Some(naive);
@@ -68,10 +78,17 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
         }
 
         if let Some(time_el) = row.select(&time_selector).next() {
-            let raw_time = time_el.text().collect::<Vec<_>>().join(" ").trim().to_string();
-            
+            let raw_time = time_el
+                .text()
+                .collect::<Vec<_>>()
+                .join(" ")
+                .trim()
+                .to_string();
+
             let (date_display, time_display) = if let Some(naive_date) = current_naive_date {
-                if let Some((local_date, local_time)) = convert_french_time_to_local(naive_date, &raw_time) {
+                if let Some((local_date, local_time)) =
+                    convert_french_time_to_local(naive_date, &raw_time)
+                {
                     (local_date, local_time)
                 } else {
                     (current_date_str.clone(), raw_time)
@@ -79,20 +96,28 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
             } else {
                 (current_date_str.clone(), raw_time)
             };
-            
-            let teams = row.select(&fixture_selector)
+
+            let teams = row
+                .select(&fixture_selector)
                 .next()
                 .map(|el| el.text().collect::<Vec<_>>().join(" ").trim().to_string())
                 .unwrap_or_else(|| "Unknown Teams".to_string());
 
-            let competition_raw = row.select(&competition_selector)
+            let competition_raw = row
+                .select(&competition_selector)
                 .next()
                 .map(|el| el.text().collect::<Vec<_>>().join(" ").trim().to_string())
                 .unwrap_or_default();
-            
-            let competition = competition_raw.split(',').next().unwrap_or(&competition_raw).trim().to_string();
 
-            let channels: Vec<String> = row.select(&channel_selector)
+            let competition = competition_raw
+                .split(',')
+                .next()
+                .unwrap_or(&competition_raw)
+                .trim()
+                .to_string();
+
+            let channels: Vec<String> = row
+                .select(&channel_selector)
                 .filter_map(|img| img.value().attr("title").map(|s| s.to_string()))
                 .collect();
 
@@ -118,11 +143,13 @@ pub fn parse_html(body: &str, team_name: &str) -> Result<Vec<Match>, AppError> {
 pub fn parse_french_date(french_date: &str) -> Option<(String, NaiveDate)> {
     // Input: "samedi 7 février"
     let parts: Vec<&str> = french_date.split_whitespace().collect();
-    if parts.len() < 3 { return None; }
-    
+    if parts.len() < 3 {
+        return None;
+    }
+
     let day_num = parts[1].parse::<u32>().ok()?;
     let month_str = parts[2].to_lowercase();
-    
+
     let month = match month_str.as_str() {
         "janvier" => 1,
         "février" | "fevrier" => 2,
@@ -141,9 +168,9 @@ pub fn parse_french_date(french_date: &str) -> Option<(String, NaiveDate)> {
 
     let current_date = Local::now().date_naive();
     let current_year = current_date.year();
-    
+
     let mut date = NaiveDate::from_ymd_opt(current_year, month, day_num)?;
-    
+
     if date < current_date - chrono::Duration::days(30) {
         date = NaiveDate::from_ymd_opt(current_year + 1, month, day_num)?;
     }
@@ -161,6 +188,6 @@ pub fn convert_french_time_to_local(date: NaiveDate, time_str: &str) -> Option<(
 
     Some((
         local_time.format("%a %d %b %Y").to_string(),
-        local_time.format("%H:%M").to_string()
+        local_time.format("%H:%M").to_string(),
     ))
 }

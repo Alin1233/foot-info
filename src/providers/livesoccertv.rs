@@ -2,32 +2,35 @@ use crate::error::AppError;
 use crate::models::TopMatch;
 use chrono::{Local, TimeZone, Utc};
 use scraper::{Html, Selector};
-use tokio::process::Command;
+use wreq::Client;
+use wreq_util::Emulation;
 
 const LIVESOCCERTV_URL: &str = "https://www.livesoccertv.com/schedules/";
 
-/// Fetches the HTML via curl (bypasses Cloudflare TLS fingerprinting that blocks reqwest).
+/// Fetches the HTML using wreq with Chrome TLS emulation (bypasses Cloudflare fingerprinting).
 pub async fn fetch_top_matches() -> Result<Vec<TopMatch>, AppError> {
-    let output = Command::new("curl")
-        .args([
-            "-s",
-            "-L",
-            "-A",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            LIVESOCCERTV_URL,
-        ])
-        .output()
-        .await
-        .map_err(|e| AppError::NoMatchesScheduled(format!("Failed to run curl: {}", e)))?;
+    let client = Client::builder()
+        .emulation(Emulation::Chrome136)
+        .build()
+        .map_err(|e| AppError::NoMatchesScheduled(format!("Failed to build HTTP client: {}", e)))?;
 
-    if !output.status.success() {
+    let response = client
+        .get(LIVESOCCERTV_URL)
+        .send()
+        .await
+        .map_err(|e| AppError::NoMatchesScheduled(format!("Request failed: {}", e)))?;
+
+    if !response.status().is_success() {
         return Err(AppError::NoMatchesScheduled(format!(
-            "curl exited with status {}",
-            output.status
+            "HTTP {} from livesoccertv.com",
+            response.status()
         )));
     }
 
-    let body = String::from_utf8_lossy(&output.stdout).to_string();
+    let body = response
+        .text()
+        .await
+        .map_err(|e| AppError::NoMatchesScheduled(format!("Failed to read response: {}", e)))?;
 
     if body.is_empty() {
         return Err(AppError::NoMatchesScheduled(
