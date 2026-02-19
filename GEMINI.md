@@ -46,11 +46,11 @@ Split into three focused modules:
   - `country(&self)`: Returns the `Country` enum (UK, US, FR).
   - `name(&self)`: Returns the provider's display name.
 - **Implementations** (each exposes a `pub fn parse_html` for testability):
-  - **`WheresTheMatchProvider`** (UK): Scrapes [WherestheMatch.com](https://www.wheresthematch.com).
-  - **`WorldSoccerTalkProvider`** (US): Scrapes [WorldSoccerTalk.com](https://worldsoccertalk.com).
-  - **`MatchsTvProvider`** (FR): Scrapes [Matchs.tv](https://matchs.tv). Also exposes `pub fn parse_french_date` and `pub fn convert_french_time_to_local`.
+  - **`WheresTheMatchProvider`** (UK): Scrapes [WherestheMatch.com](https://www.wheresthematch.com). Uses `wreq` with Chrome 136 emulation to bypass TLS fingerprinting.
+  - **`WorldSoccerTalkProvider`** (US): Scrapes [WorldSoccerTalk.com](https://worldsoccertalk.com). Uses `wreq` with Chrome 136 emulation.
+  - **`MatchsTvProvider`** (FR): Scrapes [Matchs.tv](https://matchs.tv). Uses `wreq` with Chrome 136 emulation. Also exposes `pub fn parse_french_date` and `pub fn convert_french_time_to_local`.
 - **Standalone Module** (does **not** implement `FootballProvider` — different purpose):
-  - **`livesoccertv`**: Scrapes [LiveSoccerTV.com](https://www.livesoccertv.com/schedules/) "Upcoming Top Matches" section. Returns `Vec<TopMatch>` (teams, date, URL). Requires `User-Agent` header.
+  - **`livesoccertv`**: Scrapes [LiveSoccerTV.com](https://www.livesoccertv.com/schedules/) "Upcoming Top Matches" section. Returns `Vec<TopMatch>`. Uses `wreq` with Chrome 136 emulation to bypass Cloudflare protection.
 
 ### 5. **UI Layer (`src/ui/`)**
 Modular component-based structure:
@@ -117,7 +117,7 @@ Tests use **real HTML** fetched from live provider websites, stored in `tests/re
 | **Ratatui** | The core TUI framework for rendering the interface. |
 | **Tokio** | Asynchronous runtime for non-blocking network requests. |
 | **Crossterm** | Handles low-level terminal input/output events. |
-| **Reqwest** | HTTP client for fetching HTML pages. |
+| **Wreq** | High-performance HTTP client with TLS impurity/emulation support (replaces Reqwest). |
 | **Scraper** | HTML parsing library using CSS selectors. |
 | **Chrono** | Date and time manipulation. |
 | **Chrono-TZ** | Timezone database for converting ET/Paris times to local. |

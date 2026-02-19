@@ -13,7 +13,7 @@
 ## 🚀 Features
 
 *   **Multi-Region Support**: Switch between **UK**, **US**, and **FR** data sources to see local TV listings.
-*   **Real-time Scraping**: Fetches live data from high-quality sources:
+*   **Real-time Scraping**: Fetches live data from high-quality sources, using Chrome emulation to bypass Cloudflare protection:
     *   🇬🇧 **UK**: [WherestheMatch.com](https://www.wheresthematch.com)
     *   🇺🇸 **US**: [WorldSoccerTalk.com](https://worldsoccertalk.com)
     *   🇫🇷 **FR**: [Matchs.tv](https://matchs.tv)
@@ -26,7 +26,7 @@
 *   **Language**: Rust
 *   **TUI Framework**: [Ratatui](https://github.com/ratatui-org/ratatui)
 *   **Async Runtime**: [Tokio](https://tokio.rs/)
-*   **HTTP Client**: [Reqwest](https://github.com/seanmonstar/reqwest)
+*   **HTTP Client**: [Wreq](https://github.com/homfen/wreq) (with Chrome emulation)
 *   **HTML Parsing**: [Scraper](https://github.com/causal-agent/scraper)
 *   **Serialization**: [Serde](https://serde.rs/) (for config management)
 
