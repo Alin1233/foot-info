@@ -19,20 +19,14 @@ pub fn handle(state: &mut AppState, key_event: KeyEvent) -> Option<Action> {
             None
         }
         KeyCode::Up => {
-            let groups = date_groups(&state.top_matches);
-            if let Some((col, row)) = flat_to_col_row(&groups, state.selected_top_match_index) {
-                if row > 0 {
-                    state.selected_top_match_index = groups[col].1[row - 1];
-                }
+            if state.selected_top_match_index > 0 {
+                state.selected_top_match_index -= 1;
             }
             None
         }
         KeyCode::Down => {
-            let groups = date_groups(&state.top_matches);
-            if let Some((col, row)) = flat_to_col_row(&groups, state.selected_top_match_index) {
-                if row + 1 < groups[col].1.len() {
-                    state.selected_top_match_index = groups[col].1[row + 1];
-                }
+            if state.selected_top_match_index + 1 < state.top_matches.len() {
+                state.selected_top_match_index += 1;
             }
             None
         }

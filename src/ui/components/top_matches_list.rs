@@ -1,11 +1,11 @@
 use crate::models::TopMatch;
 use crate::ui::theme::{BEIGE, GOLD, RUST_ORANGE};
 use ratatui::{
-    Frame,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Layout, Rect},
     style::{Modifier, Style},
     text::{Line, Span, Text},
     widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
+    Frame,
 };
 use std::collections::BTreeMap;
 
@@ -40,7 +40,7 @@ pub fn render(frame: &mut Frame, area: Rect, state: &TopMatchesState) {
     }
 }
 
-/// Groups matches by date and renders each group in a column.
+/// Groups matches by date and renders them in responsive columns (max 3 per row).
 fn render_columns(frame: &mut Frame, area: Rect, matches: &[TopMatch], selected_index: usize) {
     // Group matches by date, preserving insertion order
     let mut groups: Vec<(String, Vec<(usize, &TopMatch)>)> = Vec::new();
@@ -56,74 +56,85 @@ fn render_columns(frame: &mut Frame, area: Rect, matches: &[TopMatch], selected_
         }
     }
 
-    let num_cols = groups.len();
-    if num_cols == 0 {
+    let num_groups = groups.len();
+    if num_groups == 0 {
         return;
     }
 
-    // Create equal-width columns
-    let constraints: Vec<Constraint> = groups
-        .iter()
-        .map(|_| Constraint::Ratio(1, num_cols as u32))
-        .collect();
+    // Determine how many columns we can fit per row (targeting 3, falling back to 2 or 1 if extremely narrow)
+    // Assuming a minimum readable width of 25 chars per column.
+    let mut max_cols_target = 3;
+    while max_cols_target > 1 && (area.width / max_cols_target as u16) < 25 {
+        max_cols_target -= 1;
+    }
+    let cols_per_row = max_cols_target.max(1).min(num_groups);
+    let num_rows = (num_groups + cols_per_row - 1) / cols_per_row;
+    let row_constraints = vec![Constraint::Ratio(1, num_rows as u32); num_rows];
+    let row_areas = Layout::vertical(row_constraints).split(area);
 
-    let columns = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(constraints)
-        .split(area);
+    // Chunk the groups and render each chunk into a row area
+    for (row_idx, chunk) in groups.chunks(cols_per_row).enumerate() {
+        let current_row_area = row_areas[row_idx];
+        let num_cols_in_chunk = chunk.len();
 
-    for (col_idx, (date, day_matches)) in groups.iter().enumerate() {
-        let col_area = columns[col_idx];
+        let col_constraints = vec![Constraint::Ratio(1, cols_per_row as u32); cols_per_row];
+        let col_areas = Layout::horizontal(col_constraints).split(current_row_area);
 
-        // Build list items for this day
-        let mut items: Vec<ListItem> = Vec::new();
+        for (col_idx, (date, day_matches)) in chunk.iter().enumerate() {
+            let col_area = col_areas[col_idx];
 
-        for (global_idx, m) in day_matches {
-            let is_selected = *global_idx == selected_index;
+            let mut items: Vec<ListItem> = Vec::new();
 
-            let marker = if is_selected { " ▸ " } else { "   " };
+            for (global_idx, m) in day_matches {
+                let is_selected = *global_idx == selected_index;
+                let marker = if is_selected { " ▸ " } else { "   " };
+                let header_style = if is_selected {
+                    Style::default().fg(GOLD).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(BEIGE)
+                };
 
-            let header_style = if is_selected {
-                Style::default().fg(GOLD).add_modifier(Modifier::BOLD)
-            } else {
-                Style::default().fg(BEIGE)
-            };
+                let header = Line::from(vec![
+                    Span::styled(marker, header_style),
+                    Span::styled(&m.teams, header_style),
+                ]);
 
-            let header = Line::from(vec![
-                Span::styled(marker, header_style),
-                Span::styled(&m.teams, header_style),
-            ]);
+                let time_line = Line::from(vec![
+                    Span::raw("   ⏰ "),
+                    Span::styled(&m.time, Style::default().fg(BEIGE)),
+                ]);
 
-            let time_line = Line::from(vec![
-                Span::raw("   ⏰ "),
-                Span::styled(&m.time, Style::default().fg(BEIGE)),
-            ]);
+                items.push(ListItem::new(Text::from(vec![
+                    header,
+                    time_line,
+                    Line::raw(""),
+                ])));
+            }
+            let mut borders = Borders::ALL;
+            if col_idx > 0 {
+                borders.remove(Borders::LEFT);
+            }
+            if row_idx > 0 {
+                borders.remove(Borders::TOP);
+            }
 
-            items.push(ListItem::new(Text::from(vec![
-                header,
-                time_line,
-                Line::raw(""),
-            ])));
+            let list = List::new(items).block(
+                Block::default()
+                    .borders(borders)
+                    .border_style(Style::default().fg(BEIGE))
+                    .title(Span::styled(
+                        format!(" 📅 {} ", date),
+                        Style::default()
+                            .fg(RUST_ORANGE)
+                            .add_modifier(Modifier::BOLD),
+                    ))
+                    .title_alignment(Alignment::Center),
+            );
+
+            frame.render_widget(list, col_area);
         }
-
-        let list = List::new(items).block(
-            Block::default()
-                .borders(Borders::ALL)
-                .border_style(Style::default().fg(BEIGE))
-                .title(Span::styled(
-                    format!(" 📅 {} ", date),
-                    Style::default()
-                        .fg(RUST_ORANGE)
-                        .add_modifier(Modifier::BOLD),
-                ))
-                .title_alignment(Alignment::Center),
-        );
-
-        frame.render_widget(list, col_area);
     }
 }
-
-/// State for the top matches list component.
 pub enum TopMatchesState<'a> {
     Loading,
     Error(&'a str),

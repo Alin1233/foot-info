@@ -1,6 +1,6 @@
 [package]
 name = "foot-info"
-version = "0.1.0"
+version = "0.1.1"
 description = "Upcoming football tv chanels coverage and lineups"
 authors = ["Alin1233 <herciualin10@gmail.com>"]
 license = "MIT"
@@ -10,11 +10,11 @@ edition = "2024"
 color-eyre = "0.6.3"
 crossterm = "0.29.0"
 ratatui = "0.30.0"
-scraper = "0.19.0"
+scraper = "0.25.0"
 tokio = { version = "1", features = ["full"] }
 chrono = "0.4"
-chrono-tz = "0.8"
-thiserror = "1.0"
+chrono-tz = "0.10.4"
+thiserror = "2.0.18"
 directories = "6.0.0"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
@@ -23,7 +23,7 @@ wreq = { version = "5.3.0", features = ["charset"] }
 wreq-util = "2.2.6"
 
 [dev-dependencies]
-mockall = "0.13"
+mockall = "0.14.0"
 
 # Read the optimization guideline for more details: https://ratatui.rs/recipes/apps/release-your-app/#optimizations
 [profile.release]
