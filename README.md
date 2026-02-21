@@ -2,13 +2,13 @@
 
 **Foot Info** is a fast, asynchronous Terminal User Interface application built in Rust. It allows you to check upcoming TV schedules and match fixtures for your favorite football teams directly from the command line, with support for multiple regions.
 
-![Foot Info Demo](ss/Startup.png)
+![Foot Info Demo](ss/ResultsPagepng.png)
 
 ## 📸 Screenshots
 
-| Startup Screen | Search Results |
+| Top Matches | Startup Screen |
 |:---:|:---:|
-| ![Startup](ss/Startup.png) | ![Results](ss/ResultsPagepng.png) |
+| ![Top Matches](ss/TopMatchespng.png) | ![Startup](ss/Startup.png) |
 
 ## 🚀 Features
 

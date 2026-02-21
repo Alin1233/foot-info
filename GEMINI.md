@@ -20,19 +20,20 @@ The application follows a **Provider-based Architecture** with clear separation 
 Split into three focused modules:
 
 #### **State (`src/state.rs`)**
-- **Responsibility**: Pure application data — no channels, async, or side effects.
+- **Responsibility**: Pure application data — no channels, async operations, or side effects.
 - **`AppState` struct** holds:
   - `search_input`, `matches`, `error_message`, `status_message`
   - `is_loading`, `exit`
   - `providers: Vec<Arc<dyn FootballProvider>>`, `current_provider_index`
+  - `view_mode`, `top_matches`, `selected_top_match_index`
   - `config: Config`
-- Helper: `get_current_provider()` returns the active provider.
+- Helper: `get_current_provider()` returns the currently active data provider.
 
 #### **Event Handling (`src/handlers/`)**
-- **Responsibility**: Pure state mutations, easily testable without a terminal or runtime.
-- **`mod.rs`**: Dispatcher — checks global shortcuts first, then delegates to mode-specific handler. Also owns `handle_action` for applying async results.
-- **`search.rs`**: Handles Search-mode keybindings (Esc, Enter, Ctrl+s/f/t, char input).
-- **`top_matches.rs`**: Handles TopMatches-mode keybindings (↑/↓/←/→ column navigation, Enter, Esc). Includes `date_groups`/`flat_to_col_row` helpers for column-based navigation.
+- **Responsibility**: Pure state mutations, easily testable independently of a terminal environment.
+- **`mod.rs`**: Dispatcher — checks global shortcuts first, then delegates to the appropriate mode-specific handler. It also owns `handle_action` for processing async callback boundaries.
+- **`search.rs`**: Handles Search-mode keybindings (Esc, Enter, Ctrl+s/f/t, character sequence inputs).
+- **`top_matches.rs`**: Handles TopMatches-mode keybindings. Navigation is linear and chronological using ↑/↓ to browse the full timeline, while ←/→ jumps across date columns. Includes `date_groups` and `flat_to_col_row` helpers to index chronological rows dynamically without breaking orientation constraints.
 
 #### **Orchestrator (`src/app.rs`)**
 - **Responsibility**: Thin runtime shell — owns `AppState` + `mpsc` channels + the async run loop.
@@ -53,13 +54,13 @@ Split into three focused modules:
   - **`livesoccertv`**: Scrapes [LiveSoccerTV.com](https://www.livesoccertv.com/schedules/) "Upcoming Top Matches" section. Returns `Vec<TopMatch>`. Uses `wreq` with Chrome 136 emulation to bypass Cloudflare protection.
 
 ### 5. **UI Layer (`src/ui/`)**
-Modular component-based structure:
+Modular component-based structure implementing **Dynamic Responsive Design** to adapt elegantly to varying terminal dimensions.
 
 ```
 src/ui/
 ├── mod.rs              # Module root, re-exports draw()
-├── render.rs           # Thin dispatcher: outer frame + delegates to views
-├── layout.rs           # Reusable layout functions (main_vertical, input_horizontal, results_horizontal)
+├── render.rs           # Thin dispatcher: delegates outer frame rendering to views
+├── layout.rs           # Reusable layout geometry (utilizes `Constraint::Fill()` / `Constraint::Max()` to gracefully constrain widths)
 ├── theme.rs            # Color constants (BG_BLACK, GOLD, RUST_ORANGE, BEIGE)
 ├── views/
 │   ├── mod.rs
@@ -70,7 +71,7 @@ src/ui/
     ├── search_bar.rs        # Search input widget
     ├── match_list.rs        # Results display (uses ResultsState enum: Loading/Error/Matches/Empty)
     ├── status_bar.rs        # Transient status messages
-    └── top_matches_list.rs  # Upcoming top matches list with selection highlight (TopMatchesState enum)
+    └── top_matches_list.rs  # Upcoming top matches list with dynamic responsive grid switching (chunks into rows of columns) 
 ```
 
 - `render::draw(frame, &AppState)` is the entry point, rendering based on `ViewMode`.
