@@ -75,7 +75,6 @@ fn render_columns(frame: &mut Frame, area: Rect, matches: &[TopMatch], selected_
     // Chunk the groups and render each chunk into a row area
     for (row_idx, chunk) in groups.chunks(cols_per_row).enumerate() {
         let current_row_area = row_areas[row_idx];
-        let num_cols_in_chunk = chunk.len();
 
         let col_constraints = vec![Constraint::Ratio(1, cols_per_row as u32); cols_per_row];
         let col_areas = Layout::horizontal(col_constraints).split(current_row_area);
