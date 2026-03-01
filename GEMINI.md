@@ -8,39 +8,41 @@ This document outlines the architecture and resources used in the **foot-info** 
 ## Architecture
 The application follows a **Provider-based Architecture** with clear separation of concerns across state, event handling, UI, and data layers.
 
-### 1. **Entry Point (`src/main.rs`)**
+### 1. **Workspace Entry (`tui/src/main.rs`)**
 - Initializes the Tokio async runtime (`#[tokio::main]`).
 - Sets up the `Ratatui` terminal backend.
-- Imports `App` from the library crate and launches `App::run`.
+- Imports `App` from the `foot_info_tui` library crate and launches `App::run`.
 
-### 2. **Library Crate (`src/lib.rs`)**
-- Exposes all modules as a public library crate, enabling integration tests in `tests/` to access internal APIs like `providers::wheresthematch::parse_html`.
+### 2. **Core Library (`core/`)**
+The `foot_info_core` crate contains all pure domain logic, independent of any UI framework.
+- **API (`src/client.rs`)**: Exposes `FootballClient`, an orchestration layer that simplifies data fetching from various providers (`fetch_top_matches`, `search_team`). This layer is designed to be easily callable via FFI (e.g., from Flutter).
+- **Domain Models (`src/models.rs`)**: Core data structures (`Match`, `TopMatch`, `Country`).
+- **Time Utils (`src/utils/time.rs`)**: Timezone conversions.
 
-### 3. **Application Layer**
-Split into three focused modules:
+### 3. **Terminal App (`tui/`)**
+The `foot_info_tui` crate contains all interactive and visual terminal components, depending heavily on `foot_info_core`.
 
-#### **State (`src/state.rs`)**
-- **Responsibility**: Pure application data — no channels, async operations, or side effects.
+#### **State (`tui/src/state.rs`)**
+- **Responsibility**: Terminal application data.
 - **`AppState` struct** holds:
+  - `client: FootballClient`
   - `search_input`, `matches`, `error_message`, `status_message`
-  - `is_loading`, `exit`
-  - `providers: Vec<Arc<dyn FootballProvider>>`, `current_provider_index`
+  - `is_loading`, `exit`, `current_provider_index`
   - `view_mode`, `top_matches`, `selected_top_match_index`
   - `config: Config`
 - Helper: `get_current_provider()` returns the currently active data provider.
 
-#### **Event Handling (`src/handlers/`)**
-- **Responsibility**: Pure state mutations, easily testable independently of a terminal environment.
-- **`mod.rs`**: Dispatcher — checks global shortcuts first, then delegates to the appropriate mode-specific handler. It also owns `handle_action` for processing async callback boundaries.
-- **`search.rs`**: Handles Search-mode keybindings (Esc, Enter, Ctrl+s/f/t, character sequence inputs).
-- **`top_matches.rs`**: Handles TopMatches-mode keybindings. Navigation is linear and chronological using ↑/↓ to browse the full timeline, while ←/→ jumps across date columns. Includes `date_groups` and `flat_to_col_row` helpers to index chronological rows dynamically without breaking orientation constraints.
+#### **Event Handling (`tui/src/handlers/`)**
+- **Responsibility**: Keybindings and mode transitions.
+- **`mod.rs`**: Dispatcher logic, plus `handle_action` for processing async callback boundaries.
+- **`search.rs`**: Search-mode keybindings.
+- **`top_matches.rs`**: TopMatches-mode keybindings (chronological ↑/↓, column-hopping ←/→).
 
-#### **Orchestrator (`src/app.rs`)**
+#### **Orchestrator (`tui/src/app.rs`)**
 - **Responsibility**: Thin runtime shell — owns `AppState` + `mpsc` channels + the async run loop.
-- `App::run()` coordinates: polls terminal events → delegates to `handlers` → spawns async tasks → processes results.
-- `Action` enum: `Search(String)`, `MatchesFound(Vec<Match>)`, `Error(AppError)`, `FetchTopMatches`, `TopMatchesFound(Vec<TopMatch>)`.
+- `App::run()` coordinates: polls terminal events → delegates to `handlers` → calls `core`'s `FootballClient` → processes results.
 
-### 4. **The Provider System (`src/providers/`)**
+### 4. **The Provider System (`core/src/providers/`)**
 - **Pattern**: Strategy Pattern via the `FootballProvider` trait (with `#[cfg_attr(test, mockall::automock)]` for test mocking).
 - **Trait Definition (`src/providers/mod.rs`)**:
   - `fetch_matches_channels(&self, team: &str)`: Async method to fetch and parse data.
@@ -53,50 +55,43 @@ Split into three focused modules:
 - **Standalone Module** (does **not** implement `FootballProvider` — different purpose):
   - **`livesoccertv`**: Scrapes [LiveSoccerTV.com](https://www.livesoccertv.com/schedules/) "Upcoming Top Matches" section. Returns `Vec<TopMatch>`. Uses `wreq` with Chrome 136 emulation to bypass Cloudflare protection.
 
-### 5. **UI Layer (`src/ui/`)**
-Modular component-based structure implementing **Dynamic Responsive Design** to adapt elegantly to varying terminal dimensions.
+### 5. **UI Layer (`tui/src/ui/`)**
+Modular component-based structure implementing **Dynamic Responsive Design**.
 
 ```
-src/ui/
-├── mod.rs              # Module root, re-exports draw()
-├── render.rs           # Thin dispatcher: delegates outer frame rendering to views
-├── layout.rs           # Reusable layout geometry (utilizes `Constraint::Fill()` / `Constraint::Max()` to gracefully constrain widths)
+tui/src/ui/
+├── mod.rs              # Re-exports draw()
+├── render.rs           # Delegates outer frame rendering to views
+├── layout.rs           # Reusable layout geometry (utilizes `Constraint::Fill()` / `Constraint::Max()`)
 ├── theme.rs            # Color constants (BG_BLACK, GOLD, RUST_ORANGE, BEIGE)
 ├── views/
 │   ├── mod.rs
-│   ├── search.rs            # Search view composition (search bar + status + match list)
-│   └── top_matches.rs       # Top matches view composition (status + date-grouped columns)
+│   ├── search.rs            # Search view composition
+│   └── top_matches.rs       # Top matches view composition
 └── components/
     ├── mod.rs
     ├── search_bar.rs        # Search input widget
-    ├── match_list.rs        # Results display (uses ResultsState enum: Loading/Error/Matches/Empty)
+    ├── match_list.rs        # Results display
     ├── status_bar.rs        # Transient status messages
-    └── top_matches_list.rs  # Upcoming top matches list with dynamic responsive grid switching (chunks into rows of columns) 
+    └── top_matches_list.rs  # Upcoming top matches grid
 ```
 
-- `render::draw(frame, &AppState)` is the entry point, rendering based on `ViewMode`.
-- **Search mode shortcuts**: `<Esc>` quit, `<Enter>` search, `<Ctrl+s>` save favorite, `<Ctrl+f>` load favorite, `<Ctrl+c>` switch country, `<Ctrl+t>` top matches.
-- **Top Matches mode shortcuts**: `<Esc>` back, `<↑/↓>` navigate, `<Enter>` select match, `<Ctrl+c>` switch country.
+### 6. **Data Models**
+- **Core (`core/src/models.rs`)**: `Match`, `TopMatch`, `Country`.
+- **TUI (`tui/src/models.rs`)**: `ViewMode` (Search, TopMatches).
 
-### 6. **Data Layer (`src/models.rs`)**
-- `Match`: Holds `teams`, `competition`, `date`, `time`, and `channels`.
-- `TopMatch`: Lightweight struct for discovery matches (`teams`, `date`, `match_url`).
-- `ViewMode`: Enum (`Search`, `TopMatches`) tracking which screen is active.
-- `Country`: Enum (`UK`, `US`, `FR`) representing the region of the provider.
-
-### 7. **Error Handling (`src/error.rs`)**
+### 7. **Error Handling (`core/src/error.rs`)**
 - `AppError` enum with variants: `NetworkError`, `TeamNotFound`, `NoMatchesScheduled`.
 
-### 8. **Utilities**
-- **`src/user.rs`**: Handles timezone conversions.
-  - `convert_utc_to_local`: For ISO 8601 timestamps (WheresTheMatch).
-  - `convert_et_to_local`: For US Eastern Time (WorldSoccerTalk).
-- **`src/config.rs`**: Manages persistence of user preferences (favorite team) using `serde` and the system's config directory.
+### 8. **Utilities (`tui/src/config.rs`)**
+- Manages persistence of user preferences (favorite team) using `serde` and the system's config directory.
 
 ## Testing
 
-### Integration Tests (`tests/`)
-Tests use **real HTML** fetched from live provider websites, stored in `tests/resources/`:
+### Integration Tests
+Integration tests are isolated to avoid UI dependency where possible:
+- **Core Logic (`core/tests/`)**: Tests HTML parsing and data extraction using real offline HTML stored in `core/tests/resources/`.
+- **UI & State (`tui/tests/`)**: Tests state transition logic (`state_tests.rs`, `handler_tests.rs`) and Ratatui spatial rendering geometries (`ui/`).
 
 | Test File | Tests | Coverage |
 | :--- | :---: | :--- |

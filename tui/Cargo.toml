@@ -1,0 +1,24 @@
+[package]
+name = "foot-info-tui"
+version = "0.1.1"
+description = "Upcoming football tv chanels coverage and lineups"
+authors = ["Alin1233 <herciualin10@gmail.com>"]
+license = "MIT"
+edition = "2024"
+
+[dependencies]
+foot-info-core = { path = "../core" }
+color-eyre = "0.6.3"
+crossterm = "0.29.0"
+ratatui = "0.30.0"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+directories = "6.0.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "z"
+strip = true
+panic = "abort"

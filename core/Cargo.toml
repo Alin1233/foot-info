@@ -1,0 +1,20 @@
+[package]
+name = "foot-info-core"
+version = "0.1.1"
+authors = ["Alin1233 <herciualin10@gmail.com>"]
+edition = "2024"
+
+[dependencies]
+scraper = "0.25.0"
+chrono = "0.4"
+chrono-tz = "0.10.4"
+thiserror = "2.0.18"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+async-trait = "0.1.89"
+wreq = { version = "5.3.0", features = ["charset"] }
+wreq-util = "2.2.6"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[dev-dependencies]
+mockall = "0.14.0"
