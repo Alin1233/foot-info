@@ -1,0 +1,29 @@
+name: app
+description: "A new Flutter project."
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  flutter_rust_bridge: 2.11.1
+  rust_lib_app:
+    path: rust_builder
+  flutter_riverpod: ^3.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
