@@ -1,1 +1,15 @@
 tests/resources/*.html linguist-vendored
+
+# Ignore Flutter generated platform runners/boilerplate
+app/android/** linguist-generated
+app/ios/** linguist-generated
+app/linux/** linguist-generated
+app/macos/** linguist-generated
+app/windows/** linguist-generated
+app/web/** linguist-generated
+app/rust_builder/** linguist-generated
+
+# Detect only Rust and Dart languages
+* linguist-detectable=false
+*.rs linguist-detectable=true
+*.dart linguist-detectable=true
