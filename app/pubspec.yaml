@@ -16,6 +16,9 @@ dependencies:
   rust_lib_app:
     path: rust_builder
   flutter_riverpod: ^3.2.1
+  shared_preferences: ^2.5.3
+  google_fonts: ^6.2.1
+  go_router: ^15.1.2
 
 dev_dependencies:
   flutter_test:
