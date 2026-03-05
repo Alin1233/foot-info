@@ -1,6 +1,6 @@
 [package]
 name = "foot-info-tui"
-version = "0.1.1"
+version = "0.2.1"
 description = "Upcoming football tv chanels coverage and lineups"
 authors = ["Alin1233 <herciualin10@gmail.com>"]
 license = "MIT"

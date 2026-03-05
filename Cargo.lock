@@ -938,7 +938,7 @@ checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
 name = "foot-info-core"
-version = "0.1.1"
+version = "0.2.1"
 dependencies = [
  "async-trait",
  "chrono",
@@ -955,7 +955,7 @@ dependencies = [
 
 [[package]]
 name = "foot-info-tui"
-version = "0.1.1"
+version = "0.2.1"
 dependencies = [
  "color-eyre",
  "crossterm",
@@ -2325,7 +2325,7 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "rust_lib_app"
-version = "0.1.0"
+version = "0.2.1"
 dependencies = [
  "flutter_rust_bridge",
  "foot-info-core",
