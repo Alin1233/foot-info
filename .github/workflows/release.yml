@@ -120,7 +120,7 @@ jobs:
       - name: Upload Android debug symbols
         uses: actions/upload-artifact@v4
         with:
-          name: foot-info-android-symbols-${{ github.ref_name }}
+          name: android-symbols-${{ github.ref_name }}
           path: app/build/symbols
           if-no-files-found: error
           compression-level: 0
@@ -133,6 +133,7 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
+          pattern: foot-info-*
           path: artifacts
           merge-multiple: true
 
