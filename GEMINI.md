@@ -86,6 +86,9 @@ tui/src/ui/
 ### 8. **Utilities (`tui/src/config.rs`)**
 - Manages persistence of user preferences (favorite team) using `serde` and the system's config directory.
 
+### 9. **Known Issues & Build Fixes**
+- **Android NDK Compilation (`cargokit` and `boringssl`)**: When building the Flutter application for Android, `boring-sys2` (a dependency of `wreq`) requires the `ANDROID_NDK_HOME` environment variable to compile C extensions. To fix `Please set ANDROID_NDK_HOME for Android build` errors, `ANDROID_NDK_HOME` was manually exported in the `buildEnvironment()` map within `app/rust_builder/cargokit/build_tool/lib/src/android_environment.dart`.
+
 ## Testing
 
 ### Integration Tests
