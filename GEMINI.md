@@ -128,3 +128,33 @@ Integration tests are isolated to avoid UI dependency where possible:
 - **UK**: [WherestheMatch.com](https://www.wheresthematch.com)
 - **US**: [WorldSoccerTalk.com](https://worldsoccertalk.com)
 - **FR**: [Matchs.tv](https://matchs.tv)
+
+## Flutter App Architecture (app/)
+Flutter (`app/`) is a UI layer over `core/`, connected through `flutter_rust_bridge` (`app/rust`).
+- Bootstrap: `app/lib/main.dart` runs `RustLib.init()`, wraps with `ProviderScope`, then starts `MaterialApp.router`.
+- Router: `app/lib/router.dart` uses `StatefulShellRoute.indexedStack` with `/top-matches`, `/search`, `/settings`.
+- Tabs: `NavigationBar` switches via `goBranch(...)`; indexed stack keeps tab state alive between switches.
+- Providers (`app/lib/providers/*.dart`):
+  - `SearchNotifier/SearchState`: `query`, `selectedCountry`, `results`, `isLoading`, `error`.
+  - Methods: `setQuery`, `setCountry`, `search`, `clearResults`.
+  - `topMatchesProvider`: `FutureProvider<List<TopMatch>>` backed by `fetchTopMatches()`.
+  - `SettingsNotifier/SettingsState`: persisted `favoriteTeam` + `defaultCountry` in SharedPreferences.
+- Pages (`app/lib/pages/*.dart`): top matches, search, and settings; components are in `app/lib/components/*.dart`.
+- Cross-flow 1: tapping a top match pre-fills search (`teams.split(' - ').first`), triggers `search()`, then goes to `/search`.
+- Cross-flow 2: search page listens to settings default country and syncs selected provider country.
+- Cross-flow 3: favorite-team chip on search page fills query and launches search.
+- Theme: `app/lib/theme.dart` defines shared palette and typography (`GoogleFonts.inter`).
+- FFI Dart API (`app/lib/src/rust/api/simple.dart`):
+  - `searchTeam(team, country) -> Future<List<Match>>`
+  - `fetchTopMatches() -> Future<List<TopMatch>>`
+  - `Country { uk, us, fr }`
+- FFI Rust API (`app/rust/src/api/simple.rs`):
+  - `search_team(team, country) -> Vec<Match>`
+  - `fetch_top_matches() -> Vec<TopMatch>`
+  - Errors are currently swallowed with `.unwrap_or_default()` (returns empty lists).
+- Known risks:
+  - Empty-list fallback hides backend errors from Flutter.
+  - `integration_test/simple_test.dart` appears stale (`Hello, Tom!` expectation).
+  - Team parsing assumes `" - "` delimiter exists in top-match labels.
+- Verification focus:
+  - startup with Rust init, top-matches refresh, search success/empty/error, settings persistence, default-country propagation.
