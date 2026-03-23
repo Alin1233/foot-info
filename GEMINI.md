@@ -87,7 +87,39 @@ tui/src/ui/
 - Manages persistence of user preferences (favorite team) using `serde` and the system's config directory.
 
 ### 9. **Known Issues & Build Fixes**
-- **Android NDK Compilation (`cargokit` and `boringssl`)**: When building the Flutter application for Android, `boring-sys2` (a dependency of `wreq`) requires the `ANDROID_NDK_HOME` environment variable to compile C extensions. To fix `Please set ANDROID_NDK_HOME for Android build` errors, `ANDROID_NDK_HOME` was manually exported in the `buildEnvironment()` map within `app/rust_builder/cargokit/build_tool/lib/src/android_environment.dart`.
+
+#### Windows: Building the Flutter Rust Bridge (`app/`) for Android
+
+Building `librust_lib_app.so` from Windows requires several steps that are not needed on Linux/macOS. All fixes are applied in `app/rust_builder/cargokit/build_tool/lib/src/android_environment.dart` and are guarded by `Platform.isWindows` where appropriate.
+
+**Prerequisites (Windows only — install once):**
+- **NASM**: Required by `boring-sys2` (a transitive dependency of `wreq`) to assemble BoringSSL crypto code. Install via `winget install NASM.NASM` and restart your IDE.
+- **Ninja**: Required so CMake uses the Ninja generator instead of defaulting to MSVC (which cannot cross-compile for Android). Install via `winget install Ninja-build.Ninja`.
+- **`rustup`** (not the standalone MSI): Cargokit drives compilation via `rustup run stable cargo build`. The standalone Rust MSVC installer does not include `rustup` and will cause `rustup not found` errors. Uninstall any standalone Rust MSI, then install from [rustup.rs](https://rustup.rs).
+- **Android Rust targets**: Add them once with:
+  ```
+  rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+  ```
+
+**Fixes applied in `android_environment.dart`:**
+
+| Fix | Why | Platform |
+| :--- | :--- | :--- |
+| Use NDK `.cmd` wrapper scripts as `CC`, `CXX`, and Cargo linker (e.g. `armv7a-linux-androideabi24-clang.cmd`) | Raw `clang.exe` has no target baked in and no sysroot on Windows | Windows only |
+| `CMAKE_GENERATOR=Ninja` injected into env | CMake defaults to Visual Studio on Windows, which cannot cross-compile for Android | Windows only |
+| `BINDGEN_EXTRA_CLANG_ARGS_<target>` with `--sysroot=<ndk>/sysroot --target=<triple>` | `bindgen`'s internal libclang invocation doesn't inherit the NDK sysroot, so it can't find headers like `stddef.h` | All platforms |
+| `-I <ndk>/lib/clang/<ver>/include` added to `BINDGEN_EXTRA_CLANG_ARGS` | `libclang` on Windows does not auto-discover its own resource directory | Windows only |
+| `ANDROID_NDK_HOME` exported | Required by `boring-sys2`'s CMake build to locate the NDK toolchain file | All platforms |
+
+**`.env` file for local overrides:**
+
+An optional `app/.env` file (gitignored) can override the auto-detected SDK/NDK paths:
+```
+# ANDROID_SDK_ROOT=/custom/path/to/Android/Sdk
+# ANDROID_NDK_VERSION=28.2.13676358
+```
+Leave it empty (or don't create it) if your SDK is in the default location — Cargokit will detect it from `local.properties` automatically.
+
 
 ## Testing
 

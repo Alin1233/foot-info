@@ -1,6 +1,6 @@
-# ⚽ Foot Info - Football Match Scraper TUI
+# ⚽ Foot Info - Football Match Scraper
 
-**Foot Info** is a fast, asynchronous Terminal User Interface application built in Rust. It allows you to check upcoming TV schedules and match fixtures for your favorite football teams directly from the command line, with support for multiple regions.
+**Foot Info** is a fast, asynchronous football TV schedule tracker with both a **Terminal UI** (Rust TUI) and a **Mobile App** (Flutter/Android). Search for your team and instantly see upcoming match fixtures and their broadcast channels, with support for UK, US, and FR regions.
 
 ![Foot Info Demo](ss/ResultsPagepng.png)
 
@@ -10,29 +10,75 @@
 |:---:|:---:|
 | ![Top Matches](ss/TopMatchespng.png) | ![Startup](ss/Startup.png) |
 
+---
+
 ## 🚀 Features
 
-*   **Multi-Region Support**: Switch between **UK**, **US**, and **FR** data sources to see local TV listings.
-*   **Real-time Scraping**: Fetches live data from high-quality sources, using Chrome emulation to bypass Cloudflare protection:
-    *   🇬🇧 **UK**: [WherestheMatch.com](https://www.wheresthematch.com)
-    *   🇺🇸 **US**: [WorldSoccerTalk.com](https://worldsoccertalk.com)
-    *   🇫🇷 **FR**: [Matchs.tv](https://matchs.tv)
-*   **Favorite Team Persistence**: Save your favorite team to a configuration file for instant access.
-*   **Local Time Conversion**: Automatically converts match kickoff times from UTC, ET (US), or Paris time to your local system time.
-*   **Beautiful TUI**: Built with `ratatui` featuring a custom "Fall" color theme.
+- **Multi-Region Support**: Switch between **UK 🇬🇧**, **US 🇺🇸**, and **FR 🇫🇷** data sources.
+- **Real-time Scraping**: Fetches live data using Chrome emulation to bypass Cloudflare:
+  - 🇬🇧 [WherestheMatch.com](https://www.wheresthematch.com)
+  - 🇺🇸 [WorldSoccerTalk.com](https://worldsoccertalk.com)
+  - 🇫🇷 [Matchs.tv](https://matchs.tv)
+- **Upcoming Top Matches**: Pulls featured fixtures from [LiveSoccerTV.com](https://www.livesoccertv.com/schedules/).
+- **Favorite Team Persistence**: Save your favorite team for instant access.
+- **Local Time Conversion**: Converts kickoff times from UTC/ET/Paris to your local timezone.
 
-## 🛠️ Tech Stack
+---
 
-*   **Language**: Rust
-*   **TUI Framework**: [Ratatui](https://github.com/ratatui-org/ratatui)
-*   **Async Runtime**: [Tokio](https://tokio.rs/)
-*   **HTTP Client**: [Wreq](https://github.com/homfen/wreq) (with Chrome emulation)
-*   **HTML Parsing**: [Scraper](https://github.com/causal-agent/scraper)
-*   **Serialization**: [Serde](https://serde.rs/) (for config management)
+## 📂 Project Structure
 
-## 📦 Installation
+```
+foot-info/
+├── core/                   # Rust library crate — pure domain logic, no UI
+│   ├── src/
+│   │   ├── client.rs       # FootballClient: orchestrates providers (FFI-ready)
+│   │   ├── models.rs       # Match, TopMatch, Country
+│   │   ├── error.rs        # AppError enum
+│   │   ├── providers/      # Strategy pattern — one impl per data source
+│   │   │   ├── wheresthematch.rs
+│   │   │   ├── worldsoccertalk.rs
+│   │   │   ├── matchstv.rs
+│   │   │   └── livesoccertv.rs
+│   │   └── utils/
+│   │       └── time.rs     # Timezone conversion helpers
+│   └── tests/              # Offline HTML parsing integration tests
+│       └── resources/      # Saved HTML fixtures for tests
+│
+├── tui/                    # Rust binary crate — Ratatui terminal interface
+│   ├── src/
+│   │   ├── main.rs         # Entry point, Tokio runtime setup
+│   │   ├── app.rs          # Async run loop, event dispatch
+│   │   ├── state.rs        # AppState struct
+│   │   ├── config.rs       # Favorite team persistence (serde + config dir)
+│   │   ├── models.rs       # ViewMode enum (Search, TopMatches)
+│   │   ├── handlers/       # Keybinding handlers per view mode
+│   │   └── ui/             # Ratatui rendering components
+│   │       ├── theme.rs
+│   │       ├── layout.rs
+│   │       ├── components/
+│   │       └── views/
+│   └── tests/              # TUI state and handler integration tests
+│
+└── app/                    # Flutter Android/iOS app
+    ├── lib/                # Dart UI layer
+    │   ├── main.dart       # App bootstrap + RustLib.init()
+    │   ├── router.dart     # go_router: /top-matches, /search, /settings
+    │   ├── theme.dart      # Shared color palette + GoogleFonts.inter
+    │   ├── pages/          # Top matches, Search, Settings screens
+    │   ├── components/     # Reusable widgets
+    │   └── providers/      # Riverpod state (search, top-matches, settings)
+    ├── rust/               # Flutter Rust Bridge FFI layer
+    │   └── src/api/simple.rs  # search_team(), fetch_top_matches()
+    └── rust_builder/       # Cargokit build integration (patched for Windows)
+```
 
-Ensure you have Rust and Cargo installed. If not, get them from [rustup.rs](https://rustup.rs/).
+---
+
+## 🖥️ Terminal App (TUI)
+
+### Installation
+
+Requires [Rust + Cargo](https://rustup.rs/).
 
 ```bash
 git clone https://github.com/your-username/foot-info.git
@@ -40,9 +86,7 @@ cd foot-info
 cargo build --release
 ```
 
-## 🎮 Usage
-
-Run the application using Cargo:
+### Usage
 
 ```bash
 cargo run
@@ -50,27 +94,82 @@ cargo run
 
 ### Controls
 
-*   **Type to Search**: Enter the name of a football team.
-*   **`<Enter>`**: Submit the search.
-*   **`<c>`**: Cycle through available regions (**UK**, **US**, **FR**).
-*   **`<Ctrl+s>`**: Save current team as your favorite.
-*   **`<Ctrl+f>`**: Load and search for your favorite team.
-*   **`<Esc>`**: Quit the application.
+| Key | Action |
+| :--- | :--- |
+| Type | Enter a team name |
+| `<Enter>` | Submit search |
+| `<c>` | Cycle region (UK → US → FR) |
+| `<Tab>` | Switch to Top Matches view |
+| `<Ctrl+s>` | Save current team as favorite |
+| `<Ctrl+f>` | Load and search for favorite team |
+| `↑ / ↓` | Navigate results |
+| `<Esc>` | Quit |
 
-## 📂 Project Structure
+---
 
-*   `src/main.rs`: Application entry point.
-*   `src/app.rs`: State management and event loop.
-*   `src/providers/`: Data source implementations (Strategy Pattern).
-*   `src/config.rs`: User configuration and persistence logic.
-*   `src/ui.rs`: Rendering logic and layout.
-*   `src/user.rs`: Utilities for timezone conversion.
-*   `src/theme.rs`: Color palette definitions.
+## 📱 Android App
+
+The Flutter app wraps the same `core` Rust library via [flutter_rust_bridge](https://github.com/fzyzcjy/flutter_rust_bridge), giving you the full match schedule experience on Android.
+
+### Requirements
+
+- [Flutter SDK](https://flutter.dev/docs/get-started/install) ≥ 3.x
+- Android SDK with NDK (install via Android Studio → SDK Manager → SDK Tools → NDK)
+- [Rust + rustup](https://rustup.rs/) (must be `rustup`-based, **not** the standalone MSI)
+
+### Installation & Running
+
+```bash
+cd app
+flutter pub get
+flutter run
+```
+
+To build a release APK:
+
+```bash
+flutter build apk --release
+```
+
+The compiled APK is output to `app/build/app/outputs/flutter-apk/`.
+
+### Features
+
+- **Top Matches tab**: Upcoming featured fixtures from LiveSoccerTV — tap any match to jump straight to its TV schedule.
+- **Search tab**: Search any team and select your region (UK/US/FR).
+- **Settings tab**: Set a default region and save your favorite team.
+
+### Windows Build Notes
+
+Building the Android native library from **Windows** requires extra prerequisites. See [GEMINI.md §9](GEMINI.md) for the full setup guide including NASM, Ninja, rustup, and the patched `android_environment.dart` in `app/rust_builder/cargokit/`.
+
+> **TL;DR for Windows:**
+> ```powershell
+> winget install NASM.NASM
+> winget install Ninja-build.Ninja
+> # then restart your terminal/IDE
+> rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android i686-linux-android
+> ```
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+| :--- | :--- |
+| Core logic | Rust, Tokio, Wreq, Scraper, Chrono |
+| Terminal UI | Ratatui, Crossterm |
+| Mobile UI | Flutter, Riverpod, go_router |
+| FFI bridge | flutter_rust_bridge |
+| HTML parsing | Scraper (CSS selectors) |
+| Config | Serde + system config dir (TUI) / SharedPreferences (Flutter) |
+
+---
 
 ## 📝 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see [LICENSE](LICENSE) for details.
 
 ## ⚠️ Disclaimer
 
-This tool is for educational purposes. Data is scraped from third-party websites. Please respect their terms of service and usage policies.
+This tool is for educational purposes. Data is scraped from third-party websites. Please respect their terms of service.
