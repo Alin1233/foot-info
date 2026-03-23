@@ -1,9 +1,12 @@
 use crate::config::Config;
-use crate::models::ViewMode;
+use crate::models::{LeagueTab, ViewMode};
 use foot_info_core::client::FootballClient;
-use foot_info_core::models::{Match, TopMatch};
+use foot_info_core::models::{LeagueStats, Match, TopMatch};
 use foot_info_core::providers::FootballProvider;
 use std::sync::Arc;
+
+pub const DEFAULT_LEAGUE_URL: &str =
+    "https://www.livesoccertv.com/competitions/england/premier-league/";
 
 /// Pure application state — no channels, no async, no side effects.
 /// This is what the UI reads from and what handlers mutate.
@@ -20,6 +23,13 @@ pub struct AppState {
     pub view_mode: ViewMode,
     pub top_matches: Vec<TopMatch>,
     pub selected_top_match_index: usize,
+    // League view
+    pub league_stats: Option<LeagueStats>,
+    pub league_url: String,
+    pub league_tab: LeagueTab,
+    pub selected_fixture_index: usize,
+    pub selected_table_index: usize,
+    pub selected_scorer_index: usize,
 }
 
 impl AppState {
@@ -38,6 +48,12 @@ impl AppState {
             view_mode: ViewMode::Search,
             top_matches: Vec::new(),
             selected_top_match_index: 0,
+            league_stats: None,
+            league_url: DEFAULT_LEAGUE_URL.to_string(),
+            league_tab: LeagueTab::Fixtures,
+            selected_fixture_index: 0,
+            selected_table_index: 0,
+            selected_scorer_index: 0,
         }
     }
 

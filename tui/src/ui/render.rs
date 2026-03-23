@@ -74,6 +74,35 @@ pub fn draw(frame: &mut Frame, app: &AppState) {
                 Style::default().fg(GOLD).add_modifier(Modifier::BOLD),
             ),
         ]),
+        ViewMode::League => Line::from(vec![
+            Span::raw(" Back "),
+            Span::styled(
+                "<Esc> ",
+                Style::default()
+                    .fg(RUST_ORANGE)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw("| Navigate "),
+            Span::styled(
+                "<↑/↓> ",
+                Style::default().fg(GOLD).add_modifier(Modifier::BOLD),
+            ),
+            Span::raw("| Tabs "),
+            Span::styled(
+                "<Tab/Shift+Tab> ",
+                Style::default().fg(GOLD).add_modifier(Modifier::BOLD),
+            ),
+            Span::raw("| Refresh "),
+            Span::styled(
+                "<r> ",
+                Style::default().fg(GOLD).add_modifier(Modifier::BOLD),
+            ),
+            Span::raw("| Search fixture "),
+            Span::styled(
+                "<Enter> ",
+                Style::default().fg(GOLD).add_modifier(Modifier::BOLD),
+            ),
+        ]),
     };
 
     let current_provider = app.get_current_provider();
@@ -100,5 +129,6 @@ pub fn draw(frame: &mut Frame, app: &AppState) {
     match app.view_mode {
         ViewMode::Search => views::search::draw(frame, inner_area, app),
         ViewMode::TopMatches => views::top_matches::draw(frame, inner_area, app),
+        ViewMode::League => views::league::draw(frame, inner_area, app),
     }
 }

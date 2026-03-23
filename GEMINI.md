@@ -16,7 +16,7 @@ The application follows a **Provider-based Architecture** with clear separation 
 ### 2. **Core Library (`core/`)**
 The `foot_info_core` crate contains all pure domain logic, independent of any UI framework.
 - **API (`src/client.rs`)**: Exposes `FootballClient`, an orchestration layer that simplifies data fetching from various providers (`fetch_top_matches`, `search_team`). This layer is designed to be easily callable via FFI (e.g., from Flutter).
-- **Domain Models (`src/models.rs`)**: Core data structures (`Match`, `TopMatch`, `Country`).
+- **Domain Models (`src/models.rs`)**: Core data structures (`Match`, `TopMatch`, `Country`, `LeagueStats`, `LeagueFixture`, `StandingRow`, `TopScorer`).
 - **Time Utils (`src/utils/time.rs`)**: Timezone conversions.
 
 ### 3. **Terminal App (`tui/`)**
@@ -52,8 +52,9 @@ The `foot_info_tui` crate contains all interactive and visual terminal component
   - **`WheresTheMatchProvider`** (UK): Scrapes [WherestheMatch.com](https://www.wheresthematch.com). Uses `wreq` with Chrome 136 emulation to bypass TLS fingerprinting.
   - **`WorldSoccerTalkProvider`** (US): Scrapes [WorldSoccerTalk.com](https://worldsoccertalk.com). Uses `wreq` with Chrome 136 emulation.
   - **`MatchsTvProvider`** (FR): Scrapes [Matchs.tv](https://matchs.tv). Uses `wreq` with Chrome 136 emulation. Also exposes `pub fn parse_french_date` and `pub fn convert_french_time_to_local`.
-- **Standalone Module** (does **not** implement `FootballProvider` — different purpose):
+- **Standalone Modules** (does **not** implement `FootballProvider` — different purpose):
   - **`livesoccertv`**: Scrapes [LiveSoccerTV.com](https://www.livesoccertv.com/schedules/) "Upcoming Top Matches" section. Returns `Vec<TopMatch>`. Uses `wreq` with Chrome 136 emulation to bypass Cloudflare protection.
+  - **`league_stats`**: Scrapes competition-specific pages on LiveSoccerTV (e.g., Premier League) to extract recent/upcoming fixtures, live league standings, and top goalscorers. Returns `LeagueStats`.
 
 ### 5. **UI Layer (`tui/src/ui/`)**
 Modular component-based structure implementing **Dynamic Responsive Design**.
@@ -67,18 +68,22 @@ tui/src/ui/
 ├── views/
 │   ├── mod.rs
 │   ├── search.rs            # Search view composition
+│   ├── league.rs            # League statistics view composition (Tabbed)
 │   └── top_matches.rs       # Top matches view composition
 └── components/
     ├── mod.rs
     ├── search_bar.rs        # Search input widget
     ├── match_list.rs        # Results display
     ├── status_bar.rs        # Transient status messages
+    ├── league_fixtures.rs   # Upcoming league matches display
+    ├── league_table.rs      # Standings data grid display
+    ├── league_scorers.rs    # Top scorers table layout
     └── top_matches_list.rs  # Upcoming top matches grid
 ```
 
 ### 6. **Data Models**
-- **Core (`core/src/models.rs`)**: `Match`, `TopMatch`, `Country`.
-- **TUI (`tui/src/models.rs`)**: `ViewMode` (Search, TopMatches).
+- **Core (`core/src/models.rs`)**: `Match`, `TopMatch`, `Country`, `LeagueStats`, `LeagueFixture`, `StandingRow`, `TopScorer`.
+- **TUI (`tui/src/models.rs`)**: `ViewMode` (Search, TopMatches, League), `LeagueTab` (Fixtures, Table, TopScorers).
 
 ### 7. **Error Handling (`core/src/error.rs`)**
 - `AppError` enum with variants: `NetworkError`, `TeamNotFound`, `NoMatchesScheduled`.

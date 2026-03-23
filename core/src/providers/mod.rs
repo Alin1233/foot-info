@@ -2,6 +2,7 @@ use crate::error::AppError;
 use crate::models::{Country, Match};
 use async_trait::async_trait;
 
+pub mod league_stats;
 pub mod livesoccertv;
 pub mod matchstv;
 pub mod wheresthematch;

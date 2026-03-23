@@ -1,3 +1,6 @@
+pub mod league_fixtures;
+pub mod league_scorers;
+pub mod league_table;
 pub mod match_list;
 pub mod search_bar;
 pub mod status_bar;

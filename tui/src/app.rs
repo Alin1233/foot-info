@@ -1,5 +1,5 @@
 use foot_info_core::error::AppError;
-use foot_info_core::models::{Match, TopMatch};
+use foot_info_core::models::{LeagueStats, Match, TopMatch};
 use crate::handlers;
 use crate::state::AppState;
 use crate::ui;
@@ -14,6 +14,8 @@ pub enum Action {
     Error(AppError),
     FetchTopMatches,
     TopMatchesFound(Vec<TopMatch>),
+    FetchLeagueStats(String),
+    LeagueStatsFound(LeagueStats),
 }
 
 pub struct App {
@@ -78,6 +80,21 @@ impl App {
                                 match client.fetch_top_matches().await {
                                     Ok(top_matches) => {
                                         let _ = tx.send(Action::TopMatchesFound(top_matches));
+                                    }
+                                    Err(e) => {
+                                        let _ = tx.send(Action::Error(e));
+                                    }
+                                }
+                            });
+                        }
+                        Action::FetchLeagueStats(ref url) => {
+                            let tx = self.action_tx.clone();
+                            let client = self.state.client.clone();
+                            let url = url.clone();
+                            tokio::spawn(async move {
+                                match client.fetch_league_stats(&url).await {
+                                    Ok(stats) => {
+                                        let _ = tx.send(Action::LeagueStatsFound(stats));
                                     }
                                     Err(e) => {
                                         let _ = tx.send(Action::Error(e));

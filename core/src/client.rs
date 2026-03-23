@@ -1,5 +1,5 @@
 use crate::error::AppError;
-use crate::models::{Country, Match, TopMatch};
+use crate::models::{Country, LeagueStats, Match, TopMatch};
 use crate::providers::{
     matchstv::MatchsTvProvider, wheresthematch::WheresTheMatchProvider,
     worldsoccertalk::WorldSoccerTalkProvider, FootballProvider,
@@ -28,6 +28,10 @@ impl FootballClient {
 
     pub async fn fetch_top_matches(&self) -> Result<Vec<TopMatch>, AppError> {
         crate::providers::livesoccertv::fetch_top_matches().await
+    }
+
+    pub async fn fetch_league_stats(&self, competition_url: &str) -> Result<LeagueStats, AppError> {
+        crate::providers::league_stats::fetch_league_stats(competition_url).await
     }
 
     pub async fn search_team(&self, team: &str, provider: Country) -> Result<Vec<Match>, AppError> {

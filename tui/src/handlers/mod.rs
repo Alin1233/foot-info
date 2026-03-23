@@ -1,3 +1,4 @@
+mod league;
 mod search;
 mod top_matches;
 
@@ -17,6 +18,7 @@ pub fn handle_key_event(state: &mut AppState, key_event: KeyEvent) -> Option<Act
     match state.view_mode {
         ViewMode::Search => search::handle(state, key_event),
         ViewMode::TopMatches => top_matches::handle(state, key_event),
+        ViewMode::League => league::handle(state, key_event),
     }
 }
 
@@ -72,6 +74,26 @@ pub fn handle_action(state: &mut AppState, action: &Action) -> bool {
             state.top_matches = top_matches.clone();
             state.selected_top_match_index = 0;
             state.status_message = Some(format!("Found {} upcoming matches", top_matches.len()));
+            false
+        }
+        Action::FetchLeagueStats(url) => {
+            state.is_loading = true;
+            state.error_message = None;
+            state.league_url = url.clone();
+            state.league_stats = None;
+            state.selected_fixture_index = 0;
+            state.selected_table_index = 0;
+            state.selected_scorer_index = 0;
+            true
+        }
+        Action::LeagueStatsFound(stats) => {
+            state.is_loading = false;
+            let title = stats.competition.clone();
+            state.league_stats = Some(stats.clone());
+            state.status_message = Some(format!(
+                "Loaded league: {}",
+                title
+            ));
             false
         }
     }

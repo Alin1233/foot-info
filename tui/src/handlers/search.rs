@@ -24,6 +24,12 @@ pub fn handle(state: &mut AppState, key_event: KeyEvent) -> Option<Action> {
             state.status_message = Some("Fetching upcoming top matches...".to_string());
             Some(Action::FetchTopMatches)
         }
+        KeyCode::Char('l') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+            state.view_mode = ViewMode::League;
+            state.error_message = None;
+            state.status_message = Some("Loading league stats...".to_string());
+            Some(Action::FetchLeagueStats(state.league_url.clone()))
+        }
         KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
             if !state.search_input.is_empty() {
                 state.config.favorite_team = Some(state.search_input.clone());
